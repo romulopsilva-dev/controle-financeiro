@@ -928,6 +928,22 @@ footer button{margin-left:6px;}
   </div>
 </div>
 
+<div class="modal-backdrop" id="linkHoleriteModalBackdrop">
+  <div class="modal" style="width:460px;">
+    <h3>Vincular holerite</h3>
+    <p style="font-size:13px;color:var(--text-muted);line-height:1.5;margin-top:-8px;">
+      Encontrei <b id="linkHoleriteCount">0</b> lançamento(s) de Salário nesta importação.
+      Se você tiver o holerite/recibo em PDF, anexe agora para já desmembrar em Salário, INSS, IRRF, Empréstimo etc.
+    </p>
+    <div class="field"><label>Holerite (PDF, opcional)</label><input type="file" id="linkHoleriteFile" accept="application/pdf"></div>
+    <div id="linkHoleriteInfo" class="import-hint"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="linkHoleriteSkipBtn">Continuar sem anexar</button>
+      <button class="btn-primary" id="linkHoleriteConfirmBtn">Anexar e desmembrar</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1703,22 +1719,20 @@ function buildCasaAldeiaSplit(date, desc, totalVal, existingKeys){
   });
 }
 
-// "CREDIARIO AUTOM" (no installment number) is the Empréstimo Pessoal 05 installment —
-// the newer bank export dropped the "NN/60" suffix the historical ledger used to show.
-// The split has been exactly R$1.723,02 (Empréstimo) + R$2.147,20 (Juros) every month for
-// 18 straight months, so it's applied directly rather than guessed at import time.
-function buildCrediarioAutomSplit(date, desc, totalVal, existingKeys){
-  const d = desc.toLowerCase();
+// "CREDIARIO AUTOM" (no installment number) lines are Empréstimo installments where the
+// newer bank export dropped the "NN/60" suffix the historical ledger used to show. Each
+// loan's split has stayed exactly fixed for many months, so instead of guessing it's
+// looked up here — but only applied at *confirm* time (see confirmImport), after the
+// user has classified/reviewed the row, not immediately during import processing.
+const CREDIARIO_AUTOM_SPLITS = [
+  { total:3870.22, amort:1723.02, juros:2147.20, label:'Empréstimo Pessoal 05' },
+  { total:8441.37, amort:3749.19, juros:4692.18, label:'Empréstimo Pessoal 04' },
+  { total:1737.84, amort:1066.67, juros:671.17,  label:'Empréstimo Sigma Natália' },
+];
+function findCrediarioAutomSplit(desc, absVal){
+  const d = (desc||'').toLowerCase();
   if(!d.includes('crediario autom') && !d.includes('crediário autom')) return null;
-  if(Math.abs(Math.abs(totalVal) - 3870.22) > 0.05) return null;
-  const parts = [
-    { label:'Empréstimo Pessoal 05', cat:'Empréstimo', val:1723.02 },
-    { label:'Juros Empréstimo Pessoal 05', cat:'Tarifa', val:2147.20 }
-  ];
-  return parts.map(p=>{
-    const isDup = existingKeys.has(date+'|'+p.val.toFixed(2));
-    return { date, desc:p.label, val:p.val, dc:'D', cat:p.cat, isDup, include: !isDup };
-  });
+  return CREDIARIO_AUTOM_SPLITS.find(s=> Math.abs(absVal - s.total) < 0.05) || null;
 }
 
 // One-off breakdown of the June/2026 salary settlement, built from the uploaded
@@ -1854,16 +1868,22 @@ function lastDayOfMonthISO(monthLabel){
   return `${y}-${String(m+1).padStart(2,'0')}-${String(last.getUTCDate()).padStart(2,'0')}`;
 }
 
-let payslipParsedBlocks = []; // [{ label, defaultDateISO, parts:[{label,cat,val,dc,standaloneDesc}], expectedLiquido }]
+let payslipParsedBlocks = []; // [{ label, rawBlock, dateISO, cat, liquido }] — split into parts only at confirm time
 
-function transformPayslipBlock(block, depositDate){
+function computePayslipBlockDate(block, depositDate){
   let defaultDate;
   if(depositDate){
     const dISO = ddmmyyyyToISO(depositDate);
     if(!block.label || dISO.slice(0,7) === (block.label ? lastDayOfMonthISO(block.label).slice(0,7) : '')) defaultDate = dISO;
   }
   if(!defaultDate) defaultDate = block.label ? lastDayOfMonthISO(block.label) : todayISO();
+  return defaultDate;
+}
 
+// Builds the itemized Salário/Bônus/INSS/IRRF/Empréstimo/etc. lines for one block. Called
+// only at confirm time (see confirmPayslipImport) — never while the user is still
+// reviewing/classifying the holerite, mirroring how the Crediário Automático split works.
+function transformPayslipBlock(block){
   const parts = [];
   let adiantamento = 0;
   block.entries.forEach(e=>{
@@ -1886,52 +1906,41 @@ function transformPayslipBlock(block, depositDate){
     const firstIncome = parts.find(p=>p.dc==='C');
     if(firstIncome) firstIncome.val = round2(firstIncome.val - adiantamento);
   }
-  const expectedLiquido = block.liquido ? parseBRL(block.liquido) : null;
-  return { label: block.label || 'Holerite', defaultDateISO: defaultDate, parts, expectedLiquido };
+  return parts;
 }
 
 function renderPayslipBlocks(){
   const wrap = document.getElementById('payslipBlocks');
   wrap.innerHTML = '';
   payslipParsedBlocks.forEach((block, bi)=>{
-    const sum = block.parts.reduce((s,p)=> s + (p.dc==='C'?p.val:-p.val), 0);
-    const matches = block.expectedLiquido==null || Math.abs(sum - block.expectedLiquido) < 0.02;
     const div = document.createElement('div');
     div.className = 'payslip-block';
     div.innerHTML = `
       <div class="payslip-block-header">
         <h4>${block.label}</h4>
-        <div class="field" style="margin-bottom:0;"><label>Data do lançamento</label><input type="date" class="ps-date" data-block="${bi}" value="${block.defaultDateISO}"></div>
+        <div style="font-size:11.5px;color:var(--text-faint);">${block.rawBlock.entries.length} evento(s) encontrados no PDF — serão desmembrados em Salário/INSS/IRRF/Empréstimo/etc. ao confirmar</div>
       </div>
       <div class="ledger">
-        <div class="ledger-head payslip-line-head"><div>Descrição</div><div>Categoria</div><div style="text-align:right;">Valor</div></div>
+        <div class="ledger-head payslip-line-head" style="grid-template-columns:110px 1fr 160px 130px;"><div>Data</div><div>Descrição</div><div>Categoria</div><div style="text-align:right;">Valor líquido</div></div>
         <div class="payslip-lines">
-          ${block.parts.map((p,pi)=>`
-            <div class="payslip-line">
-              <div>${p.standaloneDesc || p.label}</div>
-              <div><input type="text" list="catList" value="${p.cat.replace(/"/g,'&quot;')}" class="ps-cat" data-block="${bi}" data-part="${pi}"></div>
-              <div class="val ${(p.val<0||p.dc==='C')?'C':'D'}">${p.dc==='C'?'+ ':''}${fmtBRL(p.val)}</div>
-            </div>
-          `).join('')}
-        </div>
-      </div>
-      <div class="recon-check ${matches?'ok':'bad'}" style="margin-top:10px;margin-bottom:0;">
-        <span class="recon-icon">${matches?'✓':'✗'}</span>
-        <div>
-          <div class="recon-title">${matches?'Soma bate com o líquido do holerite':'Soma não bate com o líquido do holerite'}</div>
-          <div class="recon-detail">Soma dos lançamentos: <b>${fmtBRL(sum)}</b>${block.expectedLiquido!=null?` · Líquido informado no PDF: <b>${fmtBRL(block.expectedLiquido)}</b>`:''}</div>
+          <div class="payslip-line" style="grid-template-columns:110px 1fr 160px 130px;">
+            <div><input type="date" class="ps-date" data-block="${bi}" value="${block.dateISO}"></div>
+            <div>${block.label}</div>
+            <div><input type="text" list="catList" value="${(block.cat||'').replace(/"/g,'&quot;')}" class="ps-cat" data-block="${bi}"></div>
+            <div class="val C">+ ${block.liquido!=null? fmtBRL(block.liquido): '—'}</div>
+          </div>
         </div>
       </div>
     `;
     wrap.appendChild(div);
   });
   wrap.querySelectorAll('.ps-cat').forEach(el=> el.addEventListener('input', e=>{
-    const bi = parseInt(e.target.dataset.block,10), pi = parseInt(e.target.dataset.part,10);
-    payslipParsedBlocks[bi].parts[pi].cat = e.target.value.trim();
+    const bi = parseInt(e.target.dataset.block,10);
+    payslipParsedBlocks[bi].cat = e.target.value.trim();
   }));
   wrap.querySelectorAll('.ps-date').forEach(el=> el.addEventListener('change', e=>{
     const bi = parseInt(e.target.dataset.block,10);
-    payslipParsedBlocks[bi].defaultDateISO = e.target.value;
+    payslipParsedBlocks[bi].dateISO = e.target.value;
   }));
 }
 
@@ -1946,7 +1955,13 @@ async function handlePayslipFile(file){
       document.getElementById('payslipFileInfo').textContent = 'Não consegui reconhecer nenhum evento nesse PDF. É um holerite/recibo NydusRH?';
       return;
     }
-    payslipParsedBlocks = parsed.blocks.map(b=> transformPayslipBlock(b, parsed.depositDate));
+    payslipParsedBlocks = parsed.blocks.map(b=> ({
+      label: b.label || 'Holerite',
+      rawBlock: b,
+      dateISO: computePayslipBlockDate(b, parsed.depositDate),
+      cat: 'Salário',
+      liquido: b.liquido ? parseBRL(b.liquido) : null
+    }));
     document.getElementById('payslipFileInfo').textContent = `${file.name} — ${payslipParsedBlocks.length} bloco(s) encontrado(s).`;
     renderPayslipBlocks();
     document.getElementById('payslipStep1').style.display = 'none';
@@ -1961,12 +1976,15 @@ async function confirmPayslipImport(){
   const ccIdx = STATE.accounts.indexOf('Conta Corrente Itaú');
   let count = 0;
   payslipParsedBlocks.forEach(block=>{
-    block.parts.forEach(p=>{
-      const cat = p.cat || 'Sem categoria';
+    // The itemized Salário/INSS/IRRF/Empréstimo/etc. breakdown is only computed now, at
+    // confirm time — never while the block was still showing as a single row for review.
+    const parts = transformPayslipBlock(block.rawBlock);
+    parts.forEach(p=>{
+      const cat = p.cat || block.cat || 'Sem categoria';
       if(!STATE.cats.includes(cat)) STATE.cats.push(cat);
       const id = nextId++;
       const desc = p.standaloneDesc || p.label;
-      STATE.tx.push({ id, date: block.defaultDateISO, acc: ccIdx, dc: p.dc, cat, val: p.val, desc });
+      STATE.tx.push({ id, date: block.dateISO, acc: ccIdx, dc: p.dc, cat, val: p.val, desc });
       markTxDirty(id);
       count++;
     });
@@ -2081,10 +2099,10 @@ function processImportFile(){
       }
       const aldeiaSplit = buildCasaAldeiaSplit(iso, desc, rawSigned, existingKeys);
       if(aldeiaSplit){ staged.push(...aldeiaSplit); return; }
-
-      const crediarioSplit = buildCrediarioAutomSplit(iso, desc, dc==='D'?val:-val, existingKeys);
-      if(crediarioSplit){ staged.push(...crediarioSplit); return; }
     }
+    // Pre-fill the category so the user just has to confirm (or correct) it during
+    // review — the actual Empréstimo/Juros split only happens later, at confirm time.
+    if(findCrediarioAutomSplit(desc, val)) cat = 'Empréstimo';
     const isDup = existingKeys.has(iso+'|'+val.toFixed(2));
     staged.push({ date:iso, desc, val, dc, cat, isDup, include: !isDup });
   });
@@ -2131,7 +2149,7 @@ function renderStagedTable(){
       <div><input type="text" list="catList" value="${(s.cat||'').replace(/"/g,'&quot;')}" data-i="${i}" class="imp-cat" placeholder="categoria"></div>
       <div class="val ${(s.val<0||s.dc==='C')?'C':'D'}">${s.dc==='C'?'+ ':''}${fmtBRL(s.val)}</div>
       <div><select class="dc-mini imp-dc" data-i="${i}"><option value="D" ${s.dc==='D'?'selected':''}>D</option><option value="C" ${s.dc==='C'?'selected':''}>C</option></select></div>
-      <div>${s.dc==='D' ? `<button class="icon-btn imp-split" data-i="${i}" title="Separar valor de juros deste lançamento">+juros</button>` : ''}</div>
+      <div>${(s.dc==='D' && (s.cat||'').toLowerCase()==='empréstimo') ? `<button class="icon-btn imp-split" data-i="${i}" title="Separar valor de juros deste lançamento">+juros</button>` : ''}</div>
     `;
     frag.appendChild(row);
   });
@@ -2139,9 +2157,14 @@ function renderStagedTable(){
   body.querySelectorAll('.imp-include').forEach(el=> el.addEventListener('change', e=>{
     importState.staged[parseInt(e.target.dataset.i,10)].include = e.target.checked;
   }));
-  body.querySelectorAll('.imp-cat').forEach(el=> el.addEventListener('input', e=>{
-    importState.staged[parseInt(e.target.dataset.i,10)].cat = e.target.value.trim();
-  }));
+  body.querySelectorAll('.imp-cat').forEach(el=> {
+    el.addEventListener('input', e=>{
+      importState.staged[parseInt(e.target.dataset.i,10)].cat = e.target.value.trim();
+    });
+    el.addEventListener('blur', e=>{
+      renderStagedTable();
+    });
+  });
   body.querySelectorAll('.imp-dc').forEach(el=> el.addEventListener('change', e=>{
     const i = parseInt(e.target.dataset.i,10);
     importState.staged[i].dc = e.target.value;
@@ -2163,6 +2186,66 @@ function renderStagedTable(){
   }));
 }
 
+function promptLinkHolerite(salaryRows){
+  return new Promise((resolve)=>{
+    document.getElementById('linkHoleriteCount').textContent = salaryRows.length;
+    document.getElementById('linkHoleriteFile').value = '';
+    document.getElementById('linkHoleriteInfo').textContent = '';
+    document.getElementById('linkHoleriteModalBackdrop').classList.add('show');
+
+    const skipBtn = document.getElementById('linkHoleriteSkipBtn');
+    const confirmBtn = document.getElementById('linkHoleriteConfirmBtn');
+    const cleanup = ()=>{
+      document.getElementById('linkHoleriteModalBackdrop').classList.remove('show');
+      skipBtn.removeEventListener('click', onSkip);
+      confirmBtn.removeEventListener('click', onConfirm);
+    };
+    const onSkip = ()=>{ cleanup(); resolve(null); };
+    const onConfirm = async ()=>{
+      const file = document.getElementById('linkHoleriteFile').files[0];
+      if(!file){ cleanup(); resolve(null); return; }
+      document.getElementById('linkHoleriteInfo').textContent = 'Lendo PDF…';
+      try{
+        await loadPdfJs();
+        const buf = await file.arrayBuffer();
+        const text = await extractPdfText(buf);
+        const parsed = parsePayslipText(text);
+        if(!parsed.blocks.length){
+          document.getElementById('linkHoleriteInfo').textContent = 'Não reconheci nenhum evento nesse PDF — continuando sem desmembrar.';
+          setTimeout(()=>{ cleanup(); resolve(null); }, 1400);
+          return;
+        }
+        // Match each Salário row to the parsed block with the closest líquido value —
+        // a real holerite's net pay should match the bank credit almost exactly.
+        const replacements = new Map();
+        const usedBlocks = new Set();
+        salaryRows.forEach(row=>{
+          let best=null, bestDiff=Infinity;
+          parsed.blocks.forEach((b,bi)=>{
+            if(usedBlocks.has(bi)) return;
+            const liq = b.liquido ? parseBRL(b.liquido) : null;
+            if(liq==null) return;
+            const diff = Math.abs(liq - row.val);
+            if(diff<bestDiff){ bestDiff=diff; best={block:b, bi}; }
+          });
+          if(best && bestDiff<0.05){
+            usedBlocks.add(best.bi);
+            replacements.set(row, transformPayslipBlock(best.block));
+          }
+        });
+        cleanup();
+        resolve(replacements.size ? replacements : null);
+      }catch(e){
+        console.error('link holerite failed', e);
+        document.getElementById('linkHoleriteInfo').textContent = 'Erro ao ler esse PDF — continuando sem desmembrar.';
+        setTimeout(()=>{ cleanup(); resolve(null); }, 1400);
+      }
+    };
+    skipBtn.addEventListener('click', onSkip);
+    confirmBtn.addEventListener('click', onConfirm);
+  });
+}
+
 async function confirmImport(){
   const accIdx = importState.account;
   const toAdd = importState.staged.filter(s=>s.include);
@@ -2171,8 +2254,46 @@ async function confirmImport(){
   if(missingCat.length){
     if(!confirm(`${missingCat.length} lançamento(s) sem categoria. Continuar mesmo assim? (ficarão como "Sem categoria")`)) return;
   }
+
+  // If any row was classified as Salário, offer to attach the matching holerite so it
+  // can be unfolded into Salário/INSS/IRRF/Empréstimo/etc. right here — instead of the
+  // single combined credit — before anything is actually written to the ledger.
+  const salaryRows = toAdd.filter(s=> (s.cat||'').trim().toLowerCase()==='salário');
+  let holeriteReplacements = null;
+  if(salaryRows.length){
+    holeriteReplacements = await promptLinkHolerite(salaryRows);
+  }
+
+  let splitCount = 0, holeriteCount = 0;
   toAdd.forEach(s=>{
+    if(holeriteReplacements && holeriteReplacements.has(s)){
+      holeriteReplacements.get(s).forEach(p=>{
+        const cat = p.cat || 'Sem categoria';
+        if(!STATE.cats.includes(cat)) STATE.cats.push(cat);
+        const id = nextId++;
+        const desc = p.standaloneDesc || p.label;
+        STATE.tx.push({ id, date: s.date, acc: accIdx, dc: p.dc, cat, val: p.val, desc });
+        markTxDirty(id);
+      });
+      holeriteCount++;
+      return;
+    }
     const cat = s.cat || 'Sem categoria';
+    // Only after the user's own classification (cat === 'Empréstimo', whether that came
+    // from auto-suggestion or a manual correction here in the review step) do we check
+    // whether this is a known "Crediário Autom." installment that should be unfolded into
+    // its Empréstimo + Juros components — never during the earlier processing step.
+    const split = cat==='Empréstimo' ? findCrediarioAutomSplit(s.desc, Math.abs(s.val)) : null;
+    if(split){
+      [{label:split.label, val:split.amort, cat:'Empréstimo'}, {label:`Juros ${split.label}`, val:split.juros, cat:'Tarifa'}].forEach(p=>{
+        if(!STATE.cats.includes(p.cat)) STATE.cats.push(p.cat);
+        const id = nextId++;
+        STATE.tx.push({ id, date: s.date, acc: accIdx, dc:'D', cat:p.cat, val:p.val, desc:p.label });
+        markTxDirty(id);
+      });
+      splitCount++;
+      return;
+    }
     if(!STATE.cats.includes(cat)) STATE.cats.push(cat);
     const id = nextId++;
     STATE.tx.push({ id, date: s.date, acc: accIdx, dc: s.dc, cat, val: s.val, desc: s.desc });
@@ -2180,7 +2301,10 @@ async function confirmImport(){
   });
   await persistTx();
   await runExtraSync();
-  showToast(`${toAdd.length} lançamento(s) importado(s) com sucesso.`);
+  const extraMsgs = [];
+  if(splitCount) extraMsgs.push(`${splitCount} desmembrado(s) em Empréstimo + Juros`);
+  if(holeriteCount) extraMsgs.push(`${holeriteCount} desmembrado(s) a partir do holerite anexado`);
+  showToast(`${toAdd.length} lançamento(s) importado(s) com sucesso.${extraMsgs.length? ' '+extraMsgs.join(' · ')+'.' : ''}`);
   resetImportPanel();
   document.querySelector('.tab-btn[data-tab="lancamentos"]').click();
   renderCatDatalist();
