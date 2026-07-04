@@ -330,6 +330,16 @@ footer button{margin-left:6px;}
 #pivotTable td.rowlabel{color:var(--text);font-weight:600;position:sticky;left:0;background:var(--surface);}
 #pivotTable tr.total-row td{font-weight:700;color:var(--text);background:var(--surface-2);}
 
+/* Consulta Detalhada */
+.det-row-head{grid-template-columns:92px 130px 130px 1fr 120px;}
+.det-row{display:grid;grid-template-columns:92px 130px 130px 1fr 120px;gap:8px;padding:10px 16px;font-size:13px;border-bottom:1px solid var(--border);align-items:center;}
+.det-row:last-child{border-bottom:none;}
+.det-row:hover{background:var(--surface-2);}
+.det-row .date{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text-muted);}
+.det-row .acc-tag{font-size:11.5px;color:var(--text-faint);}
+.det-row .cat{font-size:12.5px;color:var(--text-muted);}
+.det-row .val{font-family:'IBM Plex Mono',monospace;text-align:right;font-weight:600;}
+
 /* Reconciliation check */
 .recon-check{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px;margin-bottom:16px;}
 .recon-check.ok{border-color:rgba(94,234,212,0.3);}
@@ -379,8 +389,8 @@ footer button{margin-left:6px;}
   .budget-row{grid-template-columns:90px 1fr 76px;font-size:11.5px;}
 
   /* Ledger, loans, financing, and import-staging rows: fixed grid -> wrapping flex card */
-  .ledger-head, .loan-row-head, .fin-row-head, .import-staged-head, .prest-row-head, .stream-row-head{display:none;}
-  .ledger-row, .loan-row, .fin-row, .staged-row, .prest-row, .stream-row{
+  .ledger-head, .loan-row-head, .fin-row-head, .import-staged-head, .prest-row-head, .stream-row-head, .det-row-head{display:none;}
+  .ledger-row, .loan-row, .fin-row, .staged-row, .prest-row, .stream-row, .det-row{
     display:flex; flex-wrap:wrap; align-items:center; gap:3px 10px;
     padding:12px 14px;
   }
@@ -425,6 +435,13 @@ footer button{margin-left:6px;}
   .stream-row .val{order:3; margin-left:auto; font-size:14px;}
   .stream-row .desc{order:4; flex:1 0 100%; white-space:normal; font-size:13px;}
   .stream-row .acc-tag{order:5; font-size:11px;}
+
+  /* Consulta Detalhada row */
+  .det-row .date{order:1; font-size:11px;}
+  .det-row .acc-tag{order:2; font-size:11px;}
+  .det-row .val{order:3; margin-left:auto; font-size:14px;}
+  .det-row .desc{order:4; flex:1 0 100%; white-space:normal; font-size:13px;}
+  .det-row .cat{order:5; font-size:11.5px;}
 
   /* Import staging row */
   .staged-row{padding:12px 14px;}
@@ -537,6 +554,7 @@ footer button{margin-left:6px;}
         <button class="tab-btn" data-tab="prestacao">Prestação de Contas</button>
         <button class="tab-btn" data-tab="streaming">Streaming</button>
         <button class="tab-btn" data-tab="consultas">Consultas</button>
+        <button class="tab-btn" data-tab="detalhada">Consulta Detalhada</button>
       </div>
 
       <div class="tab-panel active" id="tab-dashboard">
@@ -824,6 +842,66 @@ footer button{margin-left:6px;}
         <div class="import-preview-wrap" style="max-height:70vh;">
           <table class="import-preview-table" id="pivotTable" style="width:100%;"></table>
         </div>
+      </div>
+
+      <div class="tab-panel" id="tab-detalhada">
+        <div class="filters" style="position:static;margin-bottom:16px;">
+          <div class="import-row" style="align-items:flex-end;margin-bottom:10px;">
+            <div class="field">
+              <label>Conta</label>
+              <select id="det_acc"><option value="all">Todas</option></select>
+            </div>
+            <div class="field">
+              <label>Tipo</label>
+              <select id="det_dc">
+                <option value="all">Todos</option>
+                <option value="D">Débito</option>
+                <option value="C">Crédito</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Categoria</label>
+              <select id="det_cat"><option value="all">Todas</option></select>
+            </div>
+            <div class="field">
+              <label>De</label>
+              <input type="date" id="det_from">
+            </div>
+            <div class="field">
+              <label>Até</label>
+              <input type="date" id="det_to">
+            </div>
+          </div>
+          <div class="import-row" style="align-items:flex-end;margin-bottom:0;">
+            <div class="field">
+              <label>Valor mínimo</label>
+              <input type="number" id="det_min" step="0.01" placeholder="0,00">
+            </div>
+            <div class="field">
+              <label>Valor máximo</label>
+              <input type="number" id="det_max" step="0.01" placeholder="0,00">
+            </div>
+            <div class="field" style="flex:2;">
+              <label>Buscar na descrição</label>
+              <input type="text" id="det_search" placeholder="ex: uber, netflix, sabesp…">
+            </div>
+            <button class="btn-secondary" id="detClearBtn">Limpar filtros</button>
+          </div>
+        </div>
+
+        <div class="ledger-toolbar">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn-secondary" id="detExportCsv">Exportar CSV</button>
+          </div>
+          <div class="ledger-count" id="detCount">—</div>
+        </div>
+        <div class="ledger" id="detTableWrap">
+          <div class="ledger-head det-row-head">
+            <div>Data</div><div>Conta</div><div>Categoria</div><div>Descrição</div><div style="text-align:right;">Valor</div>
+          </div>
+          <div id="detBody"></div>
+        </div>
+        <div class="load-more-wrap"><button class="btn-secondary" id="detLoadMoreBtn" style="display:none;">Carregar mais</button></div>
       </div>
     </main>
   </div>
@@ -2619,6 +2697,70 @@ function runPivot(){
   table.innerHTML = html;
 }
 
+/* ============ Consulta Detalhada (lançamento por lançamento, qualquer categoria) ============ */
+let detFilters = { acc:'all', dc:'all', cat:'all', from:'', to:'', min:null, max:null, search:'' };
+let detVisibleLimit = 200;
+
+function renderDetFilterOptions(){
+  const accSel = document.getElementById('det_acc');
+  if(accSel.options.length<=1){
+    STATE.accounts.forEach((name,idx)=>{ const o=document.createElement('option'); o.value=idx; o.textContent=name; accSel.appendChild(o); });
+  }
+  const catSel = document.getElementById('det_cat');
+  const cur = catSel.value;
+  const cats = [...STATE.cats].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  catSel.innerHTML = '<option value="all">Todas</option>';
+  cats.forEach(c=>{ const o=document.createElement('option'); o.value=c; o.textContent=c; catSel.appendChild(o); });
+  catSel.value = cur && (cur==='all' || cats.includes(cur)) ? cur : 'all';
+}
+
+function applyDetFilters(){
+  const search = detFilters.search.trim().toLowerCase();
+  return STATE.tx.filter(t=>{
+    if(detFilters.acc!=='all' && String(t.acc)!==detFilters.acc) return false;
+    if(detFilters.dc!=='all' && t.dc!==detFilters.dc) return false;
+    if(detFilters.cat!=='all' && t.cat!==detFilters.cat) return false;
+    if(detFilters.from && t.date < detFilters.from) return false;
+    if(detFilters.to && t.date > detFilters.to) return false;
+    if(detFilters.min!=null && Math.abs(t.val) < detFilters.min) return false;
+    if(detFilters.max!=null && Math.abs(t.val) > detFilters.max) return false;
+    if(search && !(t.desc||'').toLowerCase().includes(search)) return false;
+    return true;
+  });
+}
+
+function renderDetTable(reset){
+  if(reset) detVisibleLimit = 200;
+  const filtered = applyDetFilters();
+  const sorted = [...filtered].sort((a,b)=> a.date===b.date? b.id-a.id : b.date.localeCompare(a.date));
+  const total = filtered.reduce((s,t)=> s + (t.dc==='D'? -t.val : t.val), 0);
+  document.getElementById('detCount').textContent = `${filtered.length.toLocaleString('pt-BR')} lançamentos · soma líquida: ${fmtBRL(total)}`;
+  const body = document.getElementById('detBody');
+  body.innerHTML = '';
+  if(!sorted.length){ body.innerHTML = '<div class="empty-state">Nenhum lançamento encontrado para esses filtros.</div>'; document.getElementById('detLoadMoreBtn').style.display='none'; return; }
+  const slice = sorted.slice(0, detVisibleLimit);
+  const frag = document.createDocumentFragment();
+  slice.forEach(t=>{
+    const row = document.createElement('div');
+    row.className = 'det-row';
+    row.innerHTML = `
+      <div class="date">${fmtDateBR(t.date)}</div>
+      <div class="acc-tag">${STATE.accounts[t.acc]}</div>
+      <div class="cat">${t.cat||'—'}</div>
+      <div class="desc" title="${(t.desc||'').replace(/"/g,'&quot;')}">${t.desc||'<span style="color:var(--text-faint)">—</span>'}</div>
+      <div class="val ${(t.val<0||t.dc==='C')?'C':'D'}">${t.dc==='C'?'+ ':''}${fmtBRL(t.val)}</div>
+    `;
+    frag.appendChild(row);
+  });
+  body.appendChild(frag);
+  document.getElementById('detLoadMoreBtn').style.display = sorted.length>detVisibleLimit?'inline-block':'none';
+}
+
+function refreshDetalhada(){
+  renderDetFilterOptions();
+  renderDetTable(true);
+}
+
 /* --- Auto-link Casa Aldeia financing installments from Conta Corrente entries ---
    Each month the mortgage servicer posts up to 4 lines to Conta Corrente:
      "Parcela NN/360 - ..."         (categoria Empréstimo)  -> amortização
@@ -2831,6 +2973,7 @@ function wireEvents(){
       if(btn.dataset.tab==='prestacao') refreshPrestacao();
       else if(btn.dataset.tab==='streaming') refreshStreaming();
       else if(btn.dataset.tab==='consultas'){ renderPivotAccOptions(); initPivotDefaults(); runPivot(); }
+      else if(btn.dataset.tab==='detalhada') refreshDetalhada();
     });
   });
 
@@ -3020,6 +3163,48 @@ function wireEvents(){
 
   // Consultas (pivot) events
   document.getElementById('pivotRunBtn').addEventListener('click', runPivot);
+
+  // Consulta Detalhada events
+  document.getElementById('det_acc').addEventListener('change', e=>{ detFilters.acc = e.target.value; renderDetTable(true); });
+  document.getElementById('det_dc').addEventListener('change', e=>{ detFilters.dc = e.target.value; renderDetTable(true); });
+  document.getElementById('det_cat').addEventListener('change', e=>{ detFilters.cat = e.target.value; renderDetTable(true); });
+  document.getElementById('det_from').addEventListener('change', e=>{ detFilters.from = e.target.value; renderDetTable(true); });
+  document.getElementById('det_to').addEventListener('change', e=>{ detFilters.to = e.target.value; renderDetTable(true); });
+  document.getElementById('det_min').addEventListener('input', e=>{ detFilters.min = e.target.value===''?null:parseFloat(e.target.value); renderDetTable(true); });
+  document.getElementById('det_max').addEventListener('input', e=>{ detFilters.max = e.target.value===''?null:parseFloat(e.target.value); renderDetTable(true); });
+  let detSearchDebounce;
+  document.getElementById('det_search').addEventListener('input', e=>{
+    detFilters.search = e.target.value;
+    clearTimeout(detSearchDebounce);
+    detSearchDebounce = setTimeout(()=> renderDetTable(true), 180);
+  });
+  document.getElementById('detLoadMoreBtn').addEventListener('click', ()=>{ detVisibleLimit += 200; renderDetTable(false); });
+  document.getElementById('detClearBtn').addEventListener('click', ()=>{
+    detFilters = { acc:'all', dc:'all', cat:'all', from:'', to:'', min:null, max:null, search:'' };
+    document.getElementById('det_acc').value='all';
+    document.getElementById('det_dc').value='all';
+    document.getElementById('det_cat').value='all';
+    document.getElementById('det_from').value='';
+    document.getElementById('det_to').value='';
+    document.getElementById('det_min').value='';
+    document.getElementById('det_max').value='';
+    document.getElementById('det_search').value='';
+    renderDetTable(true);
+  });
+  document.getElementById('detExportCsv').addEventListener('click', ()=>{
+    const filtered = applyDetFilters();
+    const sorted = [...filtered].sort((a,b)=> a.date.localeCompare(b.date));
+    let csv = 'Data;Conta;Tipo;Categoria;Descricao;Valor\n';
+    sorted.forEach(t=>{
+      csv += `${fmtDateBR(t.date)};${STATE.accounts[t.acc]};${t.dc};${t.cat};"${(t.desc||'').replace(/"/g,'""')}";${t.val.toFixed(2).replace('.',',')}\n`;
+    });
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'consulta_detalhada.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
 
   document.getElementById('resetDataBtn').addEventListener('click', async ()=>{
     if(!confirm('Isso vai apagar os dados salvos no Firebase e reimportar o histórico original. Lançamentos adicionados manualmente serão perdidos. Continuar?')) return;
