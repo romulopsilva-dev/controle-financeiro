@@ -553,8 +553,8 @@ footer button{margin-left:6px;}
         <button class="tab-btn" data-tab="emprestimos">Empréstimos</button>
         <button class="tab-btn" data-tab="prestacao">Prestação de Contas</button>
         <button class="tab-btn" data-tab="streaming">Streaming</button>
+        <button class="tab-btn" data-tab="comparativos">Comparativos</button>
         <button class="tab-btn" data-tab="consultas">Consultas</button>
-        <button class="tab-btn" data-tab="detalhada">Consulta Detalhada</button>
       </div>
 
       <div class="tab-panel active" id="tab-dashboard">
@@ -813,13 +813,10 @@ footer button{margin-left:6px;}
         <div class="load-more-wrap"><button class="btn-secondary" id="streamLoadMoreBtn" style="display:none;">Carregar mais</button></div>
       </div>
 
-      <div class="tab-panel" id="tab-consultas">
+      <div class="tab-panel" id="tab-comparativos">
+        <div class="import-hint" style="margin-bottom:12px;">Considera apenas os lançamentos da Conta Corrente Itaú.</div>
         <div class="filters" style="position:static;margin-bottom:16px;">
           <div class="import-row" style="align-items:flex-end;margin-bottom:0;">
-            <div class="field">
-              <label>Conta</label>
-              <select id="pivot_acc"><option value="all">Todas</option></select>
-            </div>
             <div class="field">
               <label>Tipo</label>
               <select id="pivot_dc">
@@ -844,7 +841,7 @@ footer button{margin-left:6px;}
         </div>
       </div>
 
-      <div class="tab-panel" id="tab-detalhada">
+      <div class="tab-panel" id="tab-consultas">
         <div class="filters" style="position:static;margin-bottom:16px;">
           <div class="import-row" style="align-items:flex-end;margin-bottom:10px;">
             <div class="field">
@@ -2624,11 +2621,6 @@ function refreshStreaming(){
 }
 
 /* ============ Consultas (tabela dinâmica categoria x mês) ============ */
-function renderPivotAccOptions(){
-  const sel = document.getElementById('pivot_acc');
-  if(sel.options.length>1) return;
-  STATE.accounts.forEach((name,idx)=>{ const o=document.createElement('option'); o.value=idx; o.textContent=name; sel.appendChild(o); });
-}
 function initPivotDefaults(){
   const toEl = document.getElementById('pivot_to');
   const fromEl = document.getElementById('pivot_from');
@@ -2639,13 +2631,13 @@ function initPivotDefaults(){
   fromEl.value = from.toISOString().slice(0,10);
 }
 function runPivot(){
-  const accVal = document.getElementById('pivot_acc').value;
+  const ccIdx = STATE.accounts.indexOf('Conta Corrente Itaú');
   const dcVal = document.getElementById('pivot_dc').value;
   const fromVal = document.getElementById('pivot_from').value;
   const toVal = document.getElementById('pivot_to').value;
 
   const filtered = STATE.tx.filter(t=>{
-    if(accVal!=='all' && String(t.acc)!==accVal) return false;
+    if(t.acc!==ccIdx) return false; // Comparativos only considers Conta Corrente
     if(dcVal!=='all' && t.dc!==dcVal) return false;
     if(fromVal && t.date < fromVal) return false;
     if(toVal && t.date > toVal) return false;
@@ -2679,6 +2671,21 @@ function runPivot(){
   html += '<th>Total</th></tr></thead><tbody>';
   const monthTotals = months.map(()=>0);
   let grandTotal = 0;
+  // When showing both types together, also track separate Débito/Crédito totals per
+  // month so the combined "Total" line (which nets one against the other) doesn't hide
+  // how much was actually spent vs received.
+  const showSplitTotals = dcVal==='all';
+  const monthTotalsD = months.map(()=>0);
+  const monthTotalsC = months.map(()=>0);
+  let grandTotalD = 0, grandTotalC = 0;
+  if(showSplitTotals){
+    filtered.forEach(t=>{
+      const i = months.indexOf(t.date.slice(0,7));
+      if(i<0) return;
+      if(t.dc==='D'){ monthTotalsD[i]+=t.val; grandTotalD+=t.val; }
+      else { monthTotalsC[i]+=t.val; grandTotalC+=t.val; }
+    });
+  }
   cats.forEach(cat=>{
     const m = catTotals.get(cat);
     let rowTotal = 0;
@@ -2691,7 +2698,15 @@ function runPivot(){
     grandTotal += rowTotal;
     html += `<td class="num" style="color:var(--text);font-weight:700;">${fmtBRL(rowTotal)}</td></tr>`;
   });
-  html += `<tr class="total-row"><td class="rowlabel">Total</td>`;
+  if(showSplitTotals){
+    html += `<tr class="total-row" style="background:var(--expense-soft);"><td class="rowlabel" style="color:var(--expense);">Total Débitos</td>`;
+    monthTotalsD.forEach(v=> html += `<td class="num" style="color:var(--expense);">${fmtBRL(v)}</td>`);
+    html += `<td class="num" style="color:var(--expense);">${fmtBRL(grandTotalD)}</td></tr>`;
+    html += `<tr class="total-row" style="background:var(--income-soft);"><td class="rowlabel" style="color:var(--income);">Total Créditos</td>`;
+    monthTotalsC.forEach(v=> html += `<td class="num" style="color:var(--income);">${fmtBRL(v)}</td>`);
+    html += `<td class="num" style="color:var(--income);">${fmtBRL(grandTotalC)}</td></tr>`;
+  }
+  html += `<tr class="total-row"><td class="rowlabel">Total ${showSplitTotals?'líquido':''}</td>`;
   monthTotals.forEach(v=> html += `<td class="num">${fmtBRL(v)}</td>`);
   html += `<td class="num">${fmtBRL(grandTotal)}</td></tr></tbody>`;
   table.innerHTML = html;
@@ -2972,8 +2987,8 @@ function wireEvents(){
       document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
       if(btn.dataset.tab==='prestacao') refreshPrestacao();
       else if(btn.dataset.tab==='streaming') refreshStreaming();
-      else if(btn.dataset.tab==='consultas'){ renderPivotAccOptions(); initPivotDefaults(); runPivot(); }
-      else if(btn.dataset.tab==='detalhada') refreshDetalhada();
+      else if(btn.dataset.tab==='comparativos'){ initPivotDefaults(); runPivot(); }
+      else if(btn.dataset.tab==='consultas') refreshDetalhada();
     });
   });
 
