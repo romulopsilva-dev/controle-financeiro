@@ -1038,13 +1038,15 @@ function markAllTxDirty(){
 }
 function encodeCompactRow(t, catIdx){
   if(!catIdx.has(t.cat)){ catIdx.set(t.cat, STATE.cats.length); STATE.cats.push(t.cat); }
-  return [t.id, parseInt(t.date.replace(/-/g,''),10), t.acc, t.dc==='C'?1:0, catIdx.get(t.cat), t.val, t.desc||'', t.receiptUrl||''];
+  // Firestore rejects arrays-of-arrays ("Nested arrays are not supported"), so each row
+  // must be an object/map, not a positional array, even though that costs a bit more space.
+  return { i:t.id, d:parseInt(t.date.replace(/-/g,''),10), a:t.acc, c:t.dc==='C'?1:0, k:catIdx.get(t.cat), v:t.val, s:t.desc||'', r:t.receiptUrl||'' };
 }
 function decodeCompact(rows, accounts, cats){
   return rows.map(row=>{
-    const ds = String(row[1]);
+    const ds = String(row.d);
     const iso = ds.slice(0,4)+'-'+ds.slice(4,6)+'-'+ds.slice(6,8);
-    return { id:row[0], date:iso, acc:row[2], dc:row[3]===1?'C':'D', cat:cats[row[4]], val:row[5], desc:row[6]||'', receiptUrl:row[7]||'' };
+    return { id:row.i, date:iso, acc:row.a, dc:row.c===1?'C':'D', cat:cats[row.k], val:row.v, desc:row.s||'', receiptUrl:row.r||'' };
   });
 }
 
@@ -2077,9 +2079,10 @@ function processImportFile(){
                            descLower.includes('remuneracao') || descLower.includes('remuneração');
         const isRendimento = descLower.includes('rendimento') || descLower.startsWith('rend ') ||
                               descLower.includes('rend pago') || descLower.includes('rend.pago');
-        if(isSalario || isRendimento){
+        const isBonus = descLower.includes('bônus') || descLower.includes('bonus');
+        if(isSalario || isRendimento || isBonus){
           dc = 'C'; val = Math.abs(v);
-          cat = isSalario ? 'Salário' : 'Rendimentos';
+          cat = isSalario ? 'Salário' : (isRendimento ? 'Rendimentos' : 'Bônus');
         } else {
           dc = 'D'; val = v < 0 ? Math.abs(v) : -Math.abs(v);
         }
@@ -2108,10 +2111,23 @@ function processImportFile(){
       }
       const aldeiaSplit = buildCasaAldeiaSplit(iso, desc, rawSigned, existingKeys);
       if(aldeiaSplit){ staged.push(...aldeiaSplit); return; }
+
+      // Same immediate-split treatment as Casa Aldeia: known "Crediário Autom." values
+      // are unfolded into Empréstimo + Juros right here, visible in the review table,
+      // instead of waiting for confirm time.
+      const crediarioSplit = findCrediarioAutomSplit(desc, val);
+      if(crediarioSplit){
+        const parts = [
+          {label:crediarioSplit.label, val:crediarioSplit.amort, cat:'Empréstimo'},
+          {label:`Juros ${crediarioSplit.label}`, val:crediarioSplit.juros, cat:'Tarifa'}
+        ];
+        parts.forEach(p=>{
+          const isDupP = existingKeys.has(iso+'|'+p.val.toFixed(2));
+          staged.push({ date:iso, desc:p.label, val:p.val, dc:'D', cat:p.cat, isDup:isDupP, include:!isDupP });
+        });
+        return;
+      }
     }
-    // Pre-fill the category so the user just has to confirm (or correct) it during
-    // review — the actual Empréstimo/Juros split only happens later, at confirm time.
-    if(findCrediarioAutomSplit(desc, val)) cat = 'Empréstimo';
     const isDup = existingKeys.has(iso+'|'+val.toFixed(2));
     staged.push({ date:iso, desc, val, dc, cat, isDup, include: !isDup });
   });
@@ -2158,7 +2174,7 @@ function renderStagedTable(){
       <div><input type="text" list="catList" value="${(s.cat||'').replace(/"/g,'&quot;')}" data-i="${i}" class="imp-cat" placeholder="categoria"></div>
       <div class="val ${(s.val<0||s.dc==='C')?'C':'D'}">${s.dc==='C'?'+ ':''}${fmtBRL(s.val)}</div>
       <div><select class="dc-mini imp-dc" data-i="${i}"><option value="D" ${s.dc==='D'?'selected':''}>D</option><option value="C" ${s.dc==='C'?'selected':''}>C</option></select></div>
-      <div>${(s.dc==='D' && (s.cat||'').toLowerCase()==='empréstimo') ? `<button class="icon-btn imp-split" data-i="${i}" title="Separar valor de juros deste lançamento">+juros</button>` : ''}${(s.cat||'').toLowerCase()==='salário' ? `<button class="icon-btn imp-holerite" data-i="${i}" title="${s.holeriteParts ? 'Holerite anexado — clique para trocar' : 'Anexar holerite (PDF) para desmembrar'}">${s.holeriteParts ? '✓ PDF' : '📎 PDF'}</button>` : ''}</div>
+      <div>${(s.dc==='D' && (s.cat||'').toLowerCase()==='empréstimo') ? `<button class="icon-btn imp-split" data-i="${i}" title="Separar valor de juros deste lançamento">+juros</button>` : ''}${((s.cat||'').toLowerCase()==='salário' && !s.receiptFile) ? `<button class="icon-btn imp-holerite" data-i="${i}" title="Anexar holerite (PDF) para desmembrar">📎 PDF</button>` : ''}${s.receiptFile ? `<span class="icon-btn" title="Vindo do holerite anexado" style="cursor:default;">📎</span>` : ''}</div>
     `;
     frag.appendChild(row);
   });
@@ -2226,10 +2242,23 @@ async function handleRowHoleriteFile(file){
       const diff = Math.abs(liq - target.val);
       if(diff<bestDiff){ bestDiff=diff; best=b; }
     });
-    target.holeriteFile = file;
-    target.holeriteParts = transformPayslipBlock(best);
+    const parts = transformPayslipBlock(best);
+    // Replace the single Salário row with its itemized breakdown right here in the
+    // staging table — same as clicking "+juros" immediately shows Empréstimo + Juros as
+    // two separate rows, instead of hiding the split until "Confirmar importação".
+    const newRows = parts.map(p=>({
+      date: target.date,
+      desc: p.standaloneDesc || p.label,
+      val: p.val,
+      dc: p.dc,
+      cat: p.cat,
+      isDup: false,
+      include: true,
+      receiptFile: file
+    }));
+    importState.staged.splice(i, 1, ...newRows);
     renderStagedTable();
-    showToast(`Holerite anexado — será desmembrado em ${target.holeriteParts.length} lançamentos ao confirmar.`);
+    showToast(`Holerite anexado — desmembrado em ${newRows.length} lançamentos.`);
   }catch(e){
     console.error('row holerite parse failed', e);
     showToast('Não consegui ler esse PDF.');
@@ -2260,51 +2289,31 @@ async function confirmImport(){
     if(!confirm(`${missingCat.length} lançamento(s) sem categoria. Continuar mesmo assim? (ficarão como "Sem categoria")`)) return;
   }
 
-  let splitCount = 0, holeriteCount = 0;
+  // Rows produced by attaching a holerite (📎 button) already show up split in the
+  // staging table itself — same as "+juros" — so here we just need to upload the PDF
+  // (once per unique file, even though it produced several rows) and stamp the resulting
+  // download URL onto each of those transactions.
+  const uploadedUrls = new Map();
+  let holeriteCount = 0;
   for(const s of toAdd){
-    // Rows where a holerite PDF was attached (via the 📎 button, per row — same pattern
-    // as "+juros" for Empréstimo) get unfolded into Salário/INSS/IRRF/Empréstimo/etc.
-    // here, and only here, with the actual PDF uploaded to Storage so it stays available
-    // to reopen later from the ledger. Rows left without a PDF import exactly as-is.
-    if(s.holeriteParts){
-      const receiptUrl = s.holeriteFile ? await uploadReceiptFile(s.holeriteFile) : null;
-      s.holeriteParts.forEach(p=>{
-        const cat = p.cat || 'Sem categoria';
-        if(!STATE.cats.includes(cat)) STATE.cats.push(cat);
-        const id = nextId++;
-        const desc = p.standaloneDesc || p.label;
-        STATE.tx.push({ id, date: s.date, acc: accIdx, dc: p.dc, cat, val: p.val, desc, receiptUrl: receiptUrl||'' });
-        markTxDirty(id);
-      });
-      holeriteCount++;
-      continue;
+    if(s.receiptFile && !uploadedUrls.has(s.receiptFile)){
+      uploadedUrls.set(s.receiptFile, await uploadReceiptFile(s.receiptFile));
     }
+  }
+
+  toAdd.forEach(s=>{
     const cat = s.cat || 'Sem categoria';
-    // Only after the user's own classification (cat === 'Empréstimo', whether that came
-    // from auto-suggestion or a manual correction here in the review step) do we check
-    // whether this is a known "Crediário Autom." installment that should be unfolded into
-    // its Empréstimo + Juros components — never during the earlier processing step.
-    const split = cat==='Empréstimo' ? findCrediarioAutomSplit(s.desc, Math.abs(s.val)) : null;
-    if(split){
-      [{label:split.label, val:split.amort, cat:'Empréstimo'}, {label:`Juros ${split.label}`, val:split.juros, cat:'Tarifa'}].forEach(p=>{
-        if(!STATE.cats.includes(p.cat)) STATE.cats.push(p.cat);
-        const id = nextId++;
-        STATE.tx.push({ id, date: s.date, acc: accIdx, dc:'D', cat:p.cat, val:p.val, desc:p.label });
-        markTxDirty(id);
-      });
-      splitCount++;
-      continue;
-    }
     if(!STATE.cats.includes(cat)) STATE.cats.push(cat);
     const id = nextId++;
-    STATE.tx.push({ id, date: s.date, acc: accIdx, dc: s.dc, cat, val: s.val, desc: s.desc });
+    const receiptUrl = s.receiptFile ? (uploadedUrls.get(s.receiptFile)||'') : '';
+    if(receiptUrl) holeriteCount++;
+    STATE.tx.push({ id, date: s.date, acc: accIdx, dc: s.dc, cat, val: s.val, desc: s.desc, receiptUrl });
     markTxDirty(id);
-  }
+  });
   await persistTx();
   await runExtraSync();
   const extraMsgs = [];
-  if(splitCount) extraMsgs.push(`${splitCount} desmembrado(s) em Empréstimo + Juros`);
-  if(holeriteCount) extraMsgs.push(`${holeriteCount} desmembrado(s) a partir do holerite anexado`);
+  if(holeriteCount) extraMsgs.push(`${holeriteCount} lançamento(s) com holerite anexado`);
   showToast(`${toAdd.length} lançamento(s) importado(s) com sucesso.${extraMsgs.length? ' '+extraMsgs.join(' · ')+'.' : ''}`);
   resetImportPanel();
   document.querySelector('.tab-btn[data-tab="lancamentos"]').click();
