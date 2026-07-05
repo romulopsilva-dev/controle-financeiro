@@ -271,6 +271,9 @@ footer button{margin-left:6px;}
 .staged-row.is-dup{background:rgba(251,113,133,0.06);}
 .staged-row .date{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text-muted);}
 .staged-row .desc{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.staged-row .desc-edit-wrap{display:flex;align-items:center;gap:6px;min-width:0;}
+.staged-row .imp-desc{width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 9px;font-size:12.5px;min-width:0;}
+.staged-row .imp-desc:focus{border-color:var(--gold);outline:none;}
 .staged-row .dup-badge{font-size:10px;color:var(--expense);background:var(--expense-soft);padding:2px 6px;border-radius:10px;margin-left:6px;white-space:nowrap;}
 .staged-row .val{font-family:'IBM Plex Mono',monospace;text-align:right;font-weight:600;}
 .staged-row .val.D{color:var(--expense);}
@@ -342,8 +345,8 @@ footer button{margin-left:6px;}
 #pivotTable tr.total-row td{font-weight:700;color:var(--text);background:var(--surface-2);}
 
 /* Consulta Detalhada */
-.det-row-head{grid-template-columns:92px 130px 130px 1fr 120px;}
-.det-row{display:grid;grid-template-columns:92px 130px 130px 1fr 120px;gap:8px;padding:10px 16px;font-size:13px;border-bottom:1px solid var(--border);align-items:center;}
+.det-row-head{grid-template-columns:92px 130px 130px 1fr 120px 40px;}
+.det-row{display:grid;grid-template-columns:92px 130px 130px 1fr 120px 40px;gap:8px;padding:10px 16px;font-size:13px;border-bottom:1px solid var(--border);align-items:center;}
 .det-row:last-child{border-bottom:none;}
 .det-row:hover{background:var(--surface-2);}
 .det-row .date{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text-muted);}
@@ -460,6 +463,7 @@ footer button{margin-left:6px;}
   .staged-row .date{order:2; font-size:11px;}
   .staged-row .val{order:3; margin-left:auto; font-size:14px;}
   .staged-row .desc{order:4; flex:1 0 100%; white-space:normal; font-size:13px;}
+  .staged-row .desc-edit-wrap{order:4; flex:1 0 100%;}
   .staged-row > div:nth-child(4){order:5; flex:1 0 70%;} /* category input */
   .staged-row > div:nth-child(6){order:6;} /* D/C select */
   .staged-row > div:nth-child(7){order:7; margin-left:auto;} /* +juros */
@@ -666,6 +670,7 @@ footer button{margin-left:6px;}
         <div class="import-panel" id="importStep3" style="display:none;">
           <h3>3. Confira antes de importar</h3>
           <div class="import-summary" id="impSummary"></div>
+          <div id="impInvoiceRecon"></div>
           <div class="ledger-toolbar">
             <div style="display:flex;gap:8px;">
               <button class="btn-secondary" id="impCheckAll">Marcar todos</button>
@@ -905,7 +910,7 @@ footer button{margin-left:6px;}
         </div>
         <div class="ledger" id="detTableWrap">
           <div class="ledger-head det-row-head">
-            <div>Data</div><div>Conta</div><div>Categoria</div><div>Descrição</div><div style="text-align:right;">Valor</div>
+            <div>Data</div><div>Conta</div><div>Categoria</div><div>Descrição</div><div style="text-align:right;">Valor</div><div></div>
           </div>
           <div id="detBody"></div>
         </div>
@@ -1696,6 +1701,13 @@ function extractCasaAldeiaNum(desc){
 // Empréstimo/Juros/Seguro Vida/Tarifa lines. Since we know the exact breakdown for every
 // installment (from the amortization schedule), split it back into those same categories
 // automatically instead of asking the user to guess the numbers.
+// Duplicate detection needs the description too, not just date+value — otherwise two
+// different installments that happen to share an amount and date by coincidence (or two
+// separate financed purchases both currently on, say, their 2nd of 3 payments) get
+// wrongly flagged as the same transaction. Different installment numbers mean a
+// different description string, so including it here tells them apart correctly.
+function dupKey(date, val, desc){ return date+'|'+Math.abs(val).toFixed(2)+'|'+(desc||'').trim().toLowerCase(); }
+
 function buildCasaAldeiaSplit(date, desc, totalVal, existingKeys){
   const num = extractCasaAldeiaNum(desc);
   if(num==null) return null;
@@ -1718,7 +1730,7 @@ function buildCasaAldeiaSplit(date, desc, totalVal, existingKeys){
     // Diversos/FGTS adjustment keeps its true sign as a *negative* Débito rather than a
     // Crédito, consistent with the "only Salário/Rendimentos are Crédito" rule).
     const descFull = `${desc} — ${p.label}`;
-    const isDup = existingKeys.has(date+'|'+Math.abs(p.val).toFixed(2));
+    const isDup = existingKeys.has(dupKey(date, p.val, descFull));
     return { date, desc:descFull, val:round2(p.val), dc:'D', cat:p.cat, isDup, include: !isDup };
   });
 }
@@ -1917,6 +1929,11 @@ function renderPayslipBlocks(){
   const wrap = document.getElementById('payslipBlocks');
   wrap.innerHTML = '';
   payslipParsedBlocks.forEach((block, bi)=>{
+    // Compute the itemized split now just to validate it against the PDF's own líquido —
+    // the actual push to the ledger still only happens later, at "Confirmar importação".
+    const parts = transformPayslipBlock(block.rawBlock);
+    const sum = parts.reduce((s,p)=> s + (p.dc==='C'?p.val:-p.val), 0);
+    const matches = block.liquido==null || Math.abs(sum - block.liquido) < 0.02;
     const div = document.createElement('div');
     div.className = 'payslip-block';
     div.innerHTML = `
@@ -1933,6 +1950,13 @@ function renderPayslipBlocks(){
             <div><input type="text" list="catList" value="${(block.cat||'').replace(/"/g,'&quot;')}" class="ps-cat" data-block="${bi}"></div>
             <div class="val C">+ ${block.liquido!=null? fmtBRL(block.liquido): '—'}</div>
           </div>
+        </div>
+      </div>
+      <div class="recon-check ${matches?'ok':'bad'}" style="margin-top:10px;margin-bottom:0;">
+        <span class="recon-icon">${matches?'✓':'✗'}</span>
+        <div>
+          <div class="recon-title">${matches?'Soma dos itens desmembrados bate com o líquido do PDF':'Soma dos itens desmembrados NÃO bate com o líquido do PDF'}</div>
+          <div class="recon-detail">Soma calculada: <b>${fmtBRL(sum)}</b>${block.liquido!=null?` · Líquido informado no PDF: <b>${fmtBRL(block.liquido)}</b>`:''}</div>
         </div>
       </div>
     `;
@@ -2034,26 +2058,45 @@ function processImportFile(){
   // because their "date" column holds a label, not a date.
   const allRows = importState.rawRows;
   const index = buildCategorySuggestionIndex(accIdx);
-  const existingKeys = new Set(STATE.tx.filter(t=>t.acc===accIdx).map(t=> t.date+'|'+t.val.toFixed(2)));
+  const existingKeys = new Set(STATE.tx.filter(t=>t.acc===accIdx).map(t=> dupKey(t.date, t.val, t.desc)));
 
   const staged = [];
   let skipped = 0;
   const ccIdx = STATE.accounts.indexOf('Conta Corrente Itaú');
+  // Itaú's international-purchase block has no date on the actual merchant line — the
+  // real date sits on a separate "dólar de conversão" row just above it, e.g.:
+  //   27/05/2026 | dólar de conversão | 5.36   <- FX rate, not a transaction
+  //              | Anthropic          | 21.44  <- the real purchase (inherits the date above)
+  //              | valor em dólar     | 4.00   <- informational only, not a transaction
+  //              | United States      | 20.00  <- informational only, not a transaction
+  // So the date from a "dólar de conversão" row carries over to only the very next
+  // undated row; anything undated after that (until the next dated row) is skipped.
+  let pendingIntlDate = null, intlConsumed = false;
   allRows.forEach(row=>{
     const dateRaw = row[dateCol];
     const descRaw = row[descCol];
-    const iso = parseFlexibleDate(dateRaw);
-    if(!iso) return;
+    let iso = parseFlexibleDate(dateRaw);
 
     const desc = (descRaw==null?'':String(descRaw)).trim();
     if(!desc){ skipped++; return; }
     const descNorm = desc.toLowerCase();
-    // "dólar de conversão" carries a real date but its "valor" is just the FX rate, not a
-    // purchase amount — importing it would create a bogus transaction. The actual foreign
-    // purchase line that follows it has no date of its own (Itaú quirk), so for now it's
-    // simply not auto-imported rather than risk attaching it to the wrong date/value.
-    if(descNorm.includes('dólar de conversão') || descNorm.includes('dolar de conversao') ||
-       descNorm.includes('valor em dólar') || descNorm.includes('valor em dolar') ||
+
+    if(descNorm.includes('dólar de conversão') || descNorm.includes('dolar de conversao')){
+      pendingIntlDate = iso; intlConsumed = false;
+      return; // the FX-rate row itself is never a transaction
+    }
+    if(!iso){
+      if(pendingIntlDate && !intlConsumed){
+        iso = pendingIntlDate;
+        intlConsumed = true;
+        // fall through to process this row as the real international purchase below
+      } else {
+        return; // "valor em dólar", country name, or any other undated non-transaction line
+      }
+    } else {
+      pendingIntlDate = null; intlConsumed = false; // a normal dated row closes out any pending block
+    }
+    if(descNorm.includes('valor em dólar') || descNorm.includes('valor em dolar') ||
        descNorm.includes('iof - transação internacional') || descNorm.includes('iof - transacao internacional')){
       return;
     }
@@ -2122,13 +2165,13 @@ function processImportFile(){
           {label:`Juros ${crediarioSplit.label}`, val:crediarioSplit.juros, cat:'Tarifa'}
         ];
         parts.forEach(p=>{
-          const isDupP = existingKeys.has(iso+'|'+p.val.toFixed(2));
+          const isDupP = existingKeys.has(dupKey(iso, p.val, p.label));
           staged.push({ date:iso, desc:p.label, val:p.val, dc:'D', cat:p.cat, isDup:isDupP, include:!isDupP });
         });
         return;
       }
     }
-    const isDup = existingKeys.has(iso+'|'+val.toFixed(2));
+    const isDup = existingKeys.has(dupKey(iso, val, desc));
     staged.push({ date:iso, desc, val, dc, cat, isDup, include: !isDup });
   });
 
@@ -2138,6 +2181,24 @@ function processImportFile(){
   }
   importState.staged = staged;
   importState.skipped = skipped;
+  // Visa/Mastercard invoice exports include a "total (nacionais + internacionais +
+  // encargos)" summary line — scan every column of every row for that label (it can land
+  // in any column depending on the export) and grab whichever cell nearby holds a number,
+  // so the review screen can check the staged sum against it.
+  importState.invoiceTotal = null;
+  for(const row of allRows){
+    const hasLabel = row.some(cell=>{
+      const s = (cell==null?'':String(cell)).toLowerCase();
+      return s.includes('total (nacionais') || s.includes('total(nacionais');
+    });
+    if(hasLabel){
+      for(const cell of row){
+        const v = parseFlexibleValue(cell);
+        if(v!=null && v!==0){ importState.invoiceTotal = Math.abs(v); break; }
+      }
+      if(importState.invoiceTotal!=null) break;
+    }
+  }
   openImportStep3();
 }
 
@@ -2158,6 +2219,28 @@ function renderImportSummary(){
     ${noCat? ` ${noCat} sem categoria sugerida — preencha antes de confirmar (ou deixe como "Sem categoria").` : ''}
     ${importState.skipped? ` ${importState.skipped} linha(s) ignorada(s) por não ter descrição.` : ''}
   `;
+  renderInvoiceRecon();
+}
+
+function renderInvoiceRecon(){
+  const el = document.getElementById('impInvoiceRecon');
+  if(!el) return;
+  if(importState.invoiceTotal==null){ el.innerHTML = ''; return; }
+  // Matches what "total (nacionais + internacionais + encargos)" represents on the
+  // invoice itself: every purchase/refund parsed from this file, but not a card-invoice
+  // payment (that's a separate concept — last month's bill being settled, not a purchase).
+  const relevant = importState.staged.filter(s=> !(s.desc||'').toLowerCase().includes('pagamento efetuado'));
+  const sum = relevant.reduce((acc,s)=> acc + (s.dc==='D'? s.val : -s.val), 0);
+  const matches = Math.abs(sum - importState.invoiceTotal) < 0.02;
+  el.innerHTML = `
+    <div class="recon-check ${matches?'ok':'bad'}">
+      <span class="recon-icon">${matches?'✓':'✗'}</span>
+      <div>
+        <div class="recon-title">${matches?'Soma dos lançamentos bate com o total da fatura':'Soma dos lançamentos NÃO bate com o total da fatura'}</div>
+        <div class="recon-detail">Soma calculada: <b>${fmtBRL(sum)}</b> · Total informado na fatura: <b>${fmtBRL(importState.invoiceTotal)}</b>${!matches?` · diferença: ${fmtBRL(sum-importState.invoiceTotal)}`:''}</div>
+      </div>
+    </div>
+  `;
 }
 
 function renderStagedTable(){
@@ -2170,18 +2253,44 @@ function renderStagedTable(){
     row.innerHTML = `
       <div><input type="checkbox" data-i="${i}" class="imp-include" ${s.include?'checked':''}></div>
       <div class="date">${fmtDateBR(s.date)}</div>
-      <div class="desc" title="${(s.desc||'').replace(/"/g,'&quot;')}">${s.desc||'<span style="color:var(--text-faint)">—</span>'}${s.isDup?'<span class="dup-badge">possível duplicado</span>':''}</div>
+      <div class="desc-edit-wrap">
+        <input type="text" value="${(s.desc||'').replace(/"/g,'&quot;')}" data-i="${i}" class="imp-desc" placeholder="descrição" title="${(s.desc||'').replace(/"/g,'&quot;')}">
+        ${s.isDup?'<span class="dup-badge">possível duplicado</span>':''}
+      </div>
       <div><input type="text" list="catList" value="${(s.cat||'').replace(/"/g,'&quot;')}" data-i="${i}" class="imp-cat" placeholder="categoria"></div>
       <div class="val ${(s.val<0||s.dc==='C')?'C':'D'}">${s.dc==='C'?'+ ':''}${fmtBRL(s.val)}</div>
       <div><select class="dc-mini imp-dc" data-i="${i}"><option value="D" ${s.dc==='D'?'selected':''}>D</option><option value="C" ${s.dc==='C'?'selected':''}>C</option></select></div>
       <div>${(s.dc==='D' && (s.cat||'').toLowerCase()==='empréstimo') ? `<button class="icon-btn imp-split" data-i="${i}" title="Separar valor de juros deste lançamento">+juros</button>` : ''}${((s.cat||'').toLowerCase()==='salário' && !s.receiptFile) ? `<button class="icon-btn imp-holerite" data-i="${i}" title="Anexar holerite (PDF) para desmembrar">📎 PDF</button>` : ''}${s.receiptFile ? `<span class="icon-btn" title="Vindo do holerite anexado" style="cursor:default;">📎</span>` : ''}</div>
     `;
     frag.appendChild(row);
+    if(s._reconInfo){
+      const r = s._reconInfo;
+      const check = document.createElement('div');
+      check.className = `recon-check ${r.matches?'ok':'bad'}`;
+      check.style.margin = '4px 16px 10px';
+      check.innerHTML = `
+        <span class="recon-icon">${r.matches?'✓':'✗'}</span>
+        <div>
+          <div class="recon-title">${r.matches?'Soma do holerite bate com o líquido do PDF':'Soma do holerite NÃO bate com o líquido do PDF'}</div>
+          <div class="recon-detail">Soma calculada: <b>${fmtBRL(r.sum)}</b>${r.expected!=null?` · Líquido informado no PDF: <b>${fmtBRL(r.expected)}</b>`:''}</div>
+        </div>
+      `;
+      frag.appendChild(check);
+    }
   });
   body.appendChild(frag);
   body.querySelectorAll('.imp-include').forEach(el=> el.addEventListener('change', e=>{
     importState.staged[parseInt(e.target.dataset.i,10)].include = e.target.checked;
   }));
+  body.querySelectorAll('.imp-desc').forEach(el=> {
+    el.addEventListener('input', e=>{
+      importState.staged[parseInt(e.target.dataset.i,10)].desc = e.target.value;
+    });
+    el.addEventListener('blur', e=>{
+      renderStagedTable();
+      renderInvoiceRecon();
+    });
+  });
   body.querySelectorAll('.imp-cat').forEach(el=> {
     el.addEventListener('input', e=>{
       importState.staged[parseInt(e.target.dataset.i,10)].cat = e.target.value.trim();
@@ -2256,6 +2365,11 @@ async function handleRowHoleriteFile(file){
       include: true,
       receiptFile: file
     }));
+    // Tag the last row with a reconciliation check against the PDF's own líquido, so the
+    // review table itself shows whether the split adds up — not just a toast that vanishes.
+    const sum = parts.reduce((s,p)=> s + (p.dc==='C'?p.val:-p.val), 0);
+    const expected = best.liquido ? parseBRL(best.liquido) : null;
+    newRows[newRows.length-1]._reconInfo = { sum, expected, matches: expected==null || Math.abs(sum-expected)<0.02 };
     importState.staged.splice(i, 1, ...newRows);
     renderStagedTable();
     showToast(`Holerite anexado — desmembrado em ${newRows.length} lançamentos.`);
@@ -2898,11 +3012,15 @@ function renderDetTable(reset){
       <div class="cat">${t.cat||'—'}</div>
       <div class="desc" title="${(t.desc||'').replace(/"/g,'&quot;')}">${t.desc||'<span style="color:var(--text-faint)">—</span>'}</div>
       <div class="val ${(t.val<0||t.dc==='C')?'C':'D'}">${t.dc==='C'?'+ ':''}${fmtBRL(t.val)}${t.receiptUrl?` <a href="${t.receiptUrl}" target="_blank" rel="noopener" title="Ver recibo anexado" style="margin-left:4px;">📎</a>`:''}</div>
+      <div><button class="icon-btn editBtn" data-id="${t.id}" title="Editar">✎</button></div>
     `;
     frag.appendChild(row);
   });
   body.appendChild(frag);
   document.getElementById('detLoadMoreBtn').style.display = sorted.length>detVisibleLimit?'inline-block':'none';
+  body.querySelectorAll('.editBtn').forEach(btn=>{
+    btn.addEventListener('click', ()=> openEditModal(parseInt(btn.dataset.id,10)));
+  });
 }
 
 function refreshDetalhada(){
@@ -3022,13 +3140,70 @@ function renderLoanReconciliation(){
   `;
 }
 
+/* --- Auto-link Visa/Mastercard invoice payments from Conta Corrente ---
+   Every month, paying the card bill shows up as a Débito in Conta Corrente (categoria
+   "Visa" or "Mastercard") and, historically, as a matching Crédito "Pagamento" entry
+   inside that card's own ledger (same date, same value) — that's how the invoice being
+   paid off gets reflected on the card side. This mirrors that automatically so importing
+   the bank statement is enough; there's no need to also import/re-enter it on the card. */
+function syncCardPaymentsFromLedger(){
+  const ccIdx = STATE.accounts.indexOf('Conta Corrente Itaú');
+  if(ccIdx<0) return false;
+  const cardMap = [
+    { triggerCat:'Visa', targetName:'Visa Itaú' },
+    { triggerCat:'Mastercard', targetName:'Mastercard Itaú' },
+  ];
+  let changed = false;
+  cardMap.forEach(({triggerCat, targetName})=>{
+    const targetAcc = STATE.accounts.indexOf(targetName);
+    if(targetAcc<0) return;
+
+    // Remove auto-linked mirror entries whose source (the CC payment) disappeared or was
+    // recategorized away from Visa/Mastercard. Entries the user has edited/detached
+    // (no longer autoLinked) are left alone.
+    const sourceIds = new Set(STATE.tx.filter(t=>t.acc===ccIdx && t.cat===triggerCat).map(t=>t.id));
+    const toRemove = STATE.tx.filter(t=> t.acc===targetAcc && t.cat==='Pagamento' && t.autoLinked && t.sourceTxId && !sourceIds.has(t.sourceTxId));
+    if(toRemove.length){
+      toRemove.forEach(t=> markTxDirty(t.id));
+      const removeIds = new Set(toRemove.map(t=>t.id));
+      STATE.tx = STATE.tx.filter(t=> !removeIds.has(t.id));
+      changed = true;
+    }
+
+    const linkedSourceIds = new Set(STATE.tx.filter(t=>t.acc===targetAcc && t.cat==='Pagamento' && t.sourceTxId).map(t=>t.sourceTxId));
+    STATE.tx.filter(t=>t.acc===ccIdx && t.cat===triggerCat).forEach(p=>{
+      if(linkedSourceIds.has(p.id)) return;
+      // Historical imports may already have this exact payment recorded on the card's own
+      // ledger (same date + value) — adopt that row instead of creating a duplicate.
+      const candidate = STATE.tx.find(t=> t.acc===targetAcc && t.cat==='Pagamento' && !t.sourceTxId && t.date===p.date && Math.abs(Math.abs(t.val)-Math.abs(p.val))<0.02);
+      if(candidate){
+        candidate.sourceTxId = p.id;
+        candidate.autoLinked = true;
+        markTxDirty(candidate.id);
+        linkedSourceIds.add(p.id);
+        changed = true;
+        return;
+      }
+      const id = nextId++;
+      if(!STATE.cats.includes('Pagamento')) STATE.cats.push('Pagamento');
+      STATE.tx.push({ id, date:p.date, acc:targetAcc, dc:'C', cat:'Pagamento', val: Math.abs(p.val), desc:'', autoLinked:true, sourceTxId:p.id });
+      markTxDirty(id);
+      linkedSourceIds.add(p.id);
+      changed = true;
+    });
+  });
+  return changed;
+}
+
 // Combined into one call (and one storage write) since both write to the same key.
 async function runFinancingSync(){ await runExtraSync(); }
 async function runLoanSync(){ /* no-op: covered by runExtraSync */ }
 async function runExtraSync(){
   const a = syncFinancingFromLedger();
   const b = syncLoansFromLedger();
+  const c = syncCardPaymentsFromLedger();
   if(a || b) persistExtraData(); // fire-and-forget: never block the UI on slow/failing storage retries
+  if(c) persistTx(); // card-payment mirrors live in STATE.tx itself, so they persist via the tx chunks
 }
 
 /* ============ Event wiring ============ */
@@ -3175,6 +3350,7 @@ function wireEvents(){
     refreshUI();
     refreshFinancing();
     refreshLoans();
+    renderDetTable(false);
   });
   document.getElementById('deleteEntryBtn').addEventListener('click', async ()=>{
     const id = parseInt(document.getElementById('e_id').value,10);
@@ -3188,6 +3364,7 @@ function wireEvents(){
     refreshUI();
     refreshFinancing();
     refreshLoans();
+    renderDetTable(false);
   });
 
   document.querySelectorAll('.subtab-btn').forEach(btn=>{
