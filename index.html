@@ -3146,6 +3146,13 @@ function renderLoanReconciliation(){
    inside that card's own ledger (same date, same value) — that's how the invoice being
    paid off gets reflected on the card side. This mirrors that automatically so importing
    the bank statement is enough; there's no need to also import/re-enter it on the card. */
+// The original spreadsheet import seeds transactions with sequential ids 1..37655 (see
+// loadData's first-run branch). Any gap found *within* that range reflects how the
+// original Excel was actually kept — not an oversight — so the auto-link below only ever
+// creates a brand-new mirror entry for a payment added after that point; for older gaps
+// it only *adopts* an already-existing matching entry, never fabricates a new one.
+const HISTORICAL_SEED_MAX_ID = 37655;
+
 function syncCardPaymentsFromLedger(){
   const ccIdx = STATE.accounts.indexOf('Conta Corrente Itaú');
   if(ccIdx<0) return false;
@@ -3159,10 +3166,13 @@ function syncCardPaymentsFromLedger(){
     if(targetAcc<0) return;
 
     // Remove auto-linked mirror entries whose source (the CC payment) disappeared or was
-    // recategorized away from Visa/Mastercard. Entries the user has edited/detached
-    // (no longer autoLinked) are left alone.
+    // recategorized away from Visa/Mastercard, AND any mirror that was mistakenly created
+    // (by an earlier version of this sync, before this rule existed) for a gap in the
+    // original historical data — a brand-new tx id pointing back at an old source id.
+    // Entries the user has edited/detached (no longer autoLinked) are left alone either way.
     const sourceIds = new Set(STATE.tx.filter(t=>t.acc===ccIdx && t.cat===triggerCat).map(t=>t.id));
-    const toRemove = STATE.tx.filter(t=> t.acc===targetAcc && t.cat==='Pagamento' && t.autoLinked && t.sourceTxId && !sourceIds.has(t.sourceTxId));
+    const toRemove = STATE.tx.filter(t=> t.acc===targetAcc && t.cat==='Pagamento' && t.autoLinked && t.sourceTxId &&
+      (!sourceIds.has(t.sourceTxId) || (t.id>HISTORICAL_SEED_MAX_ID && t.sourceTxId<=HISTORICAL_SEED_MAX_ID)));
     if(toRemove.length){
       toRemove.forEach(t=> markTxDirty(t.id));
       const removeIds = new Set(toRemove.map(t=>t.id));
@@ -3174,7 +3184,8 @@ function syncCardPaymentsFromLedger(){
     STATE.tx.filter(t=>t.acc===ccIdx && t.cat===triggerCat).forEach(p=>{
       if(linkedSourceIds.has(p.id)) return;
       // Historical imports may already have this exact payment recorded on the card's own
-      // ledger (same date + value) — adopt that row instead of creating a duplicate.
+      // ledger (same date + value) — adopt that row instead of creating a duplicate. This
+      // is safe to do regardless of how old the entry is, since it never fabricates data.
       const candidate = STATE.tx.find(t=> t.acc===targetAcc && t.cat==='Pagamento' && !t.sourceTxId && t.date===p.date && Math.abs(Math.abs(t.val)-Math.abs(p.val))<0.02);
       if(candidate){
         candidate.sourceTxId = p.id;
@@ -3184,6 +3195,7 @@ function syncCardPaymentsFromLedger(){
         changed = true;
         return;
       }
+      if(p.id <= HISTORICAL_SEED_MAX_ID) return; // a gap in the original data — leave it exactly as the spreadsheet had it
       const id = nextId++;
       if(!STATE.cats.includes('Pagamento')) STATE.cats.push('Pagamento');
       STATE.tx.push({ id, date:p.date, acc:targetAcc, dc:'C', cat:'Pagamento', val: Math.abs(p.val), desc:'', autoLinked:true, sourceTxId:p.id });
