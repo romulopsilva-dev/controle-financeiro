@@ -1045,13 +1045,13 @@ function encodeCompactRow(t, catIdx){
   if(!catIdx.has(t.cat)){ catIdx.set(t.cat, STATE.cats.length); STATE.cats.push(t.cat); }
   // Firestore rejects arrays-of-arrays ("Nested arrays are not supported"), so each row
   // must be an object/map, not a positional array, even though that costs a bit more space.
-  return { i:t.id, d:parseInt(t.date.replace(/-/g,''),10), a:t.acc, c:t.dc==='C'?1:0, k:catIdx.get(t.cat), v:t.val, s:t.desc||'', r:t.receiptUrl||'' };
+  return { i:t.id, d:parseInt(t.date.replace(/-/g,''),10), a:t.acc, c:t.dc==='C'?1:0, k:catIdx.get(t.cat), v:t.val, s:t.desc||'', r:t.receiptUrl||'', al:t.autoLinked?1:0, sx:t.sourceTxId||0 };
 }
 function decodeCompact(rows, accounts, cats){
   return rows.map(row=>{
     const ds = String(row.d);
     const iso = ds.slice(0,4)+'-'+ds.slice(4,6)+'-'+ds.slice(6,8);
-    return { id:row.i, date:iso, acc:row.a, dc:row.c===1?'C':'D', cat:cats[row.k], val:row.v, desc:row.s||'', receiptUrl:row.r||'' };
+    return { id:row.i, date:iso, acc:row.a, dc:row.c===1?'C':'D', cat:cats[row.k], val:row.v, desc:row.s||'', receiptUrl:row.r||'', autoLinked: row.al===1, sourceTxId: row.sx||null };
   });
 }
 
@@ -3165,14 +3165,17 @@ function syncCardPaymentsFromLedger(){
     const targetAcc = STATE.accounts.indexOf(targetName);
     if(targetAcc<0) return;
 
-    // Remove auto-linked mirror entries whose source (the CC payment) disappeared or was
-    // recategorized away from Visa/Mastercard, AND any mirror that was mistakenly created
-    // (by an earlier version of this sync, before this rule existed) for a gap in the
-    // original historical data — a brand-new tx id pointing back at an old source id.
-    // Entries the user has edited/detached (no longer autoLinked) are left alone either way.
-    const sourceIds = new Set(STATE.tx.filter(t=>t.acc===ccIdx && t.cat===triggerCat).map(t=>t.id));
-    const toRemove = STATE.tx.filter(t=> t.acc===targetAcc && t.cat==='Pagamento' && t.autoLinked && t.sourceTxId &&
-      (!sourceIds.has(t.sourceTxId) || (t.id>HISTORICAL_SEED_MAX_ID && t.sourceTxId<=HISTORICAL_SEED_MAX_ID)));
+    const ccEntries = STATE.tx.filter(t=>t.acc===ccIdx && t.cat===triggerCat);
+    const historicalCC = ccEntries.filter(t=>t.id<=HISTORICAL_SEED_MAX_ID);
+
+    // Undo any mirror this sync mistakenly created for a gap in the *original* historical
+    // data (a brand-new tx id, id > seed max, standing in for an old id <= seed max).
+    // Matched by date+value rather than the sourceTxId tag, since entries saved before
+    // that tag started being persisted would otherwise be invisible to this cleanup.
+    const toRemove = STATE.tx.filter(t=>{
+      if(!(t.acc===targetAcc && t.cat==='Pagamento' && t.id>HISTORICAL_SEED_MAX_ID)) return false;
+      return historicalCC.some(c=> c.date===t.date && Math.abs(Math.abs(c.val)-Math.abs(t.val))<0.02);
+    });
     if(toRemove.length){
       toRemove.forEach(t=> markTxDirty(t.id));
       const removeIds = new Set(toRemove.map(t=>t.id));
@@ -3180,27 +3183,29 @@ function syncCardPaymentsFromLedger(){
       changed = true;
     }
 
-    const linkedSourceIds = new Set(STATE.tx.filter(t=>t.acc===targetAcc && t.cat==='Pagamento' && t.sourceTxId).map(t=>t.sourceTxId));
-    STATE.tx.filter(t=>t.acc===ccIdx && t.cat===triggerCat).forEach(p=>{
-      if(linkedSourceIds.has(p.id)) return;
-      // Historical imports may already have this exact payment recorded on the card's own
-      // ledger (same date + value) — adopt that row instead of creating a duplicate. This
-      // is safe to do regardless of how old the entry is, since it never fabricates data.
-      const candidate = STATE.tx.find(t=> t.acc===targetAcc && t.cat==='Pagamento' && !t.sourceTxId && t.date===p.date && Math.abs(Math.abs(t.val)-Math.abs(p.val))<0.02);
-      if(candidate){
-        candidate.sourceTxId = p.id;
-        candidate.autoLinked = true;
-        markTxDirty(candidate.id);
-        linkedSourceIds.add(p.id);
-        changed = true;
-        return;
-      }
-      if(p.id <= HISTORICAL_SEED_MAX_ID) return; // a gap in the original data — leave it exactly as the spreadsheet had it
+    // Also remove mirrors whose source (the CC payment) disappeared or was recategorized
+    // away from Visa/Mastercard. Entries the user has edited/detached (no longer
+    // autoLinked) are left alone.
+    const sourceIds = new Set(ccEntries.map(t=>t.id));
+    const orphaned = STATE.tx.filter(t=> t.acc===targetAcc && t.cat==='Pagamento' && t.autoLinked && t.sourceTxId && !sourceIds.has(t.sourceTxId));
+    if(orphaned.length){
+      orphaned.forEach(t=> markTxDirty(t.id));
+      const removeIds = new Set(orphaned.map(t=>t.id));
+      STATE.tx = STATE.tx.filter(t=> !removeIds.has(t.id));
+      changed = true;
+    }
+
+    // Only ever create a brand-new mirror for a payment added *after* the original import
+    // (id > seed max) — a gap inside the historical range reflects how the spreadsheet
+    // actually was and must stay untouched.
+    const newCC = STATE.tx.filter(t=>t.acc===ccIdx && t.cat===triggerCat && t.id>HISTORICAL_SEED_MAX_ID);
+    newCC.forEach(p=>{
+      const alreadyLinked = STATE.tx.some(t=> t.acc===targetAcc && t.cat==='Pagamento' && t.date===p.date && Math.abs(Math.abs(t.val)-Math.abs(p.val))<0.02);
+      if(alreadyLinked) return;
       const id = nextId++;
       if(!STATE.cats.includes('Pagamento')) STATE.cats.push('Pagamento');
       STATE.tx.push({ id, date:p.date, acc:targetAcc, dc:'C', cat:'Pagamento', val: Math.abs(p.val), desc:'', autoLinked:true, sourceTxId:p.id });
       markTxDirty(id);
-      linkedSourceIds.add(p.id);
       changed = true;
     });
   });
