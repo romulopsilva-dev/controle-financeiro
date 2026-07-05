@@ -939,20 +939,7 @@ footer button{margin-left:6px;}
   </div>
 </div>
 
-<div class="modal-backdrop" id="linkHoleriteModalBackdrop">
-  <div class="modal" style="width:600px;max-width:92vw;">
-    <h3>Desmembrar lançamentos de Salário</h3>
-    <p style="font-size:13px;color:var(--text-muted);line-height:1.5;margin-top:-8px;">
-      Encontrei os lançamentos de Salário abaixo nesta importação. Para cada um, anexe o holerite/recibo em PDF correspondente
-      se quiser desmembrar em Salário, INSS, IRRF, Empréstimo etc. — o que ficar sem PDF entra como está.
-    </p>
-    <div id="linkHoleriteRows"></div>
-    <div class="modal-actions">
-      <button class="btn-secondary" id="linkHoleriteSkipAllBtn">Continuar sem desmembrar nenhum</button>
-      <button class="btn-primary" id="linkHoleriteConfirmBtn">Continuar importação</button>
-    </div>
-  </div>
-</div>
+<input type="file" id="rowHoleriteFileInput" accept="application/pdf" style="display:none;">
 
 <div class="toast" id="toast"></div>
 
@@ -1007,6 +994,7 @@ async function storageGetJSON(key){
 // Every storage write goes through this single chain so two writes are never in flight
 // at once — even across different background tasks (initial seed, a user action, a retry).
 let storageWriteChain = Promise.resolve();
+let lastStorageError = null;
 async function storageSetJSON(key, obj, attempts){
   attempts = attempts || 3;
   const fb = window.__fb;
@@ -1017,7 +1005,11 @@ async function storageSetJSON(key, obj, attempts){
         await fb.setDoc(ref, { value: obj });
         return true;
       }catch(e){
-        if(i===attempts-1){ console.error('firestore set failed', key, e); return false; }
+        if(i===attempts-1){
+          console.error('firestore set failed', key, e);
+          lastStorageError = `${e.code||''} ${e.message||e}`.trim();
+          return false;
+        }
         await new Promise(r=>setTimeout(r, 800*(i+1)));
       }
     }
@@ -1137,8 +1129,8 @@ let needsBackgroundSeed = false;
 async function backgroundSeedToStorage(){
   if(!needsBackgroundSeed) return;
   const ok = await persistAppData();
-  if(ok) showToast('Histórico salvo no navegador.');
-  else showToast('Não consegui salvar o histórico no navegador (verifique a conexão). O app continua funcionando nesta sessão.');
+  if(ok) showToast('Histórico salvo na nuvem (Firebase).');
+  else showToast(`Não consegui salvar o histórico no Firebase${lastStorageError?` (${lastStorageError})`:''}. O app continua funcionando nesta sessão, mas pode pedir pra reimportar depois.`);
 }
 
 /* ============ Derived data ============ */
@@ -2166,7 +2158,7 @@ function renderStagedTable(){
       <div><input type="text" list="catList" value="${(s.cat||'').replace(/"/g,'&quot;')}" data-i="${i}" class="imp-cat" placeholder="categoria"></div>
       <div class="val ${(s.val<0||s.dc==='C')?'C':'D'}">${s.dc==='C'?'+ ':''}${fmtBRL(s.val)}</div>
       <div><select class="dc-mini imp-dc" data-i="${i}"><option value="D" ${s.dc==='D'?'selected':''}>D</option><option value="C" ${s.dc==='C'?'selected':''}>C</option></select></div>
-      <div>${(s.dc==='D' && (s.cat||'').toLowerCase()==='empréstimo') ? `<button class="icon-btn imp-split" data-i="${i}" title="Separar valor de juros deste lançamento">+juros</button>` : ''}</div>
+      <div>${(s.dc==='D' && (s.cat||'').toLowerCase()==='empréstimo') ? `<button class="icon-btn imp-split" data-i="${i}" title="Separar valor de juros deste lançamento">+juros</button>` : ''}${(s.cat||'').toLowerCase()==='salário' ? `<button class="icon-btn imp-holerite" data-i="${i}" title="${s.holeriteParts ? 'Holerite anexado — clique para trocar' : 'Anexar holerite (PDF) para desmembrar'}">${s.holeriteParts ? '✓ PDF' : '📎 PDF'}</button>` : ''}</div>
     `;
     frag.appendChild(row);
   });
@@ -2201,6 +2193,47 @@ function renderStagedTable(){
     renderStagedTable();
     showToast('Lançamento separado em Empréstimo + Juros.');
   }));
+  body.querySelectorAll('.imp-holerite').forEach(el=> el.addEventListener('click', e=>{
+    const i = parseInt(e.target.dataset.i,10);
+    const fileInput = document.getElementById('rowHoleriteFileInput');
+    fileInput.dataset.targetRow = i;
+    fileInput.value = '';
+    fileInput.click();
+  }));
+}
+
+// Reads a PDF picked for ONE specific staged row (via the 📎 button, mirroring "+juros"),
+// parses it, and stashes the itemized parts on that row so the actual split + upload to
+// Storage only happens later, at "Confirmar importação" — never here.
+async function handleRowHoleriteFile(file){
+  const fileInput = document.getElementById('rowHoleriteFileInput');
+  const i = parseInt(fileInput.dataset.targetRow,10);
+  const target = importState.staged[i];
+  if(!target) return;
+  showToast('Lendo holerite…');
+  try{
+    await loadPdfJs();
+    const buf = await file.arrayBuffer();
+    const text = await extractPdfText(buf);
+    const parsed = parsePayslipText(text);
+    if(!parsed.blocks.length){ showToast('Não reconheci nenhum evento nesse PDF.'); return; }
+    // If the PDF has more than one block (e.g. a férias receipt paying out across two
+    // months), pick whichever block's líquido is closest to this row's value.
+    let best = parsed.blocks[0], bestDiff = Infinity;
+    parsed.blocks.forEach(b=>{
+      const liq = b.liquido ? parseBRL(b.liquido) : null;
+      if(liq==null) return;
+      const diff = Math.abs(liq - target.val);
+      if(diff<bestDiff){ bestDiff=diff; best=b; }
+    });
+    target.holeriteFile = file;
+    target.holeriteParts = transformPayslipBlock(best);
+    renderStagedTable();
+    showToast(`Holerite anexado — será desmembrado em ${target.holeriteParts.length} lançamentos ao confirmar.`);
+  }catch(e){
+    console.error('row holerite parse failed', e);
+    showToast('Não consegui ler esse PDF.');
+  }
 }
 
 async function uploadReceiptFile(file){
@@ -2218,82 +2251,6 @@ async function uploadReceiptFile(file){
   }
 }
 
-function promptLinkHoleritePerRow(salaryRows){
-  return new Promise((resolve)=>{
-    const rowsWrap = document.getElementById('linkHoleriteRows');
-    rowsWrap.innerHTML = salaryRows.map((row, idx)=>`
-      <div class="link-holerite-row">
-        <div class="lhr-info">
-          <div class="lhr-date">${fmtDateBR(row.date)}</div>
-          <div class="lhr-desc" title="${(row.desc||'').replace(/"/g,'&quot;')}">${row.desc||'Salário'}</div>
-        </div>
-        <div class="lhr-val">${fmtBRL(row.val)}</div>
-        <div class="lhr-file">
-          <input type="file" accept="application/pdf" class="lhr-input" data-idx="${idx}">
-          <div class="lhr-status" id="lhrStatus${idx}"></div>
-        </div>
-      </div>
-    `).join('');
-    document.getElementById('linkHoleriteModalBackdrop').classList.add('show');
-
-    const skipBtn = document.getElementById('linkHoleriteSkipAllBtn');
-    const confirmBtn = document.getElementById('linkHoleriteConfirmBtn');
-    const fileMap = new Map(); // idx -> File
-
-    const onFileChange = (e)=>{
-      const idx = parseInt(e.target.dataset.idx,10);
-      const file = e.target.files[0];
-      const statusEl = document.getElementById(`lhrStatus${idx}`);
-      if(file){ fileMap.set(idx, file); statusEl.textContent = '✓ anexado'; }
-      else { fileMap.delete(idx); statusEl.textContent = ''; }
-    };
-    rowsWrap.querySelectorAll('.lhr-input').forEach(inp=> inp.addEventListener('change', onFileChange));
-
-    const cleanup = ()=>{
-      document.getElementById('linkHoleriteModalBackdrop').classList.remove('show');
-      skipBtn.removeEventListener('click', onSkip);
-      confirmBtn.removeEventListener('click', onConfirm);
-    };
-    const onSkip = ()=>{ cleanup(); resolve(null); };
-    const onConfirm = async ()=>{
-      if(fileMap.size===0){ cleanup(); resolve(null); return; }
-      confirmBtn.disabled = true;
-      confirmBtn.textContent = 'Lendo PDFs…';
-      const replacements = new Map(); // row -> {parts, file}
-      for(const [idx, file] of fileMap.entries()){
-        const row = salaryRows[idx];
-        const statusEl = document.getElementById(`lhrStatus${idx}`);
-        try{
-          await loadPdfJs();
-          const buf = await file.arrayBuffer();
-          const text = await extractPdfText(buf);
-          const parsed = parsePayslipText(text);
-          if(!parsed.blocks.length){ if(statusEl) statusEl.textContent = 'PDF não reconhecido'; continue; }
-          // If the PDF has more than one block (e.g. a férias receipt paying out across
-          // two months), pick whichever block's líquido is closest to this row's value.
-          let best = parsed.blocks[0], bestDiff = Infinity;
-          parsed.blocks.forEach(b=>{
-            const liq = b.liquido ? parseBRL(b.liquido) : null;
-            if(liq==null) return;
-            const diff = Math.abs(liq - row.val);
-            if(diff<bestDiff){ bestDiff=diff; best=b; }
-          });
-          replacements.set(row, { parts: transformPayslipBlock(best), file });
-        }catch(e){
-          console.error('holerite parse failed', e);
-          if(statusEl) statusEl.textContent = 'erro ao ler';
-        }
-      }
-      cleanup();
-      confirmBtn.disabled = false;
-      confirmBtn.textContent = 'Continuar importação';
-      resolve(replacements.size ? replacements : null);
-    };
-    skipBtn.addEventListener('click', onSkip);
-    confirmBtn.addEventListener('click', onConfirm);
-  });
-}
-
 async function confirmImport(){
   const accIdx = importState.account;
   const toAdd = importState.staged.filter(s=>s.include);
@@ -2303,21 +2260,15 @@ async function confirmImport(){
     if(!confirm(`${missingCat.length} lançamento(s) sem categoria. Continuar mesmo assim? (ficarão como "Sem categoria")`)) return;
   }
 
-  // Every Salário row found gets listed in one dialog, each with its own PDF slot —
-  // whichever ones get a holerite attached are unfolded into Salário/INSS/IRRF/
-  // Empréstimo/etc.; the rest are imported exactly as they came from the bank statement.
-  const salaryRows = toAdd.filter(s=> (s.cat||'').trim().toLowerCase()==='salário');
-  let holeriteReplacements = null;
-  if(salaryRows.length){
-    holeriteReplacements = await promptLinkHoleritePerRow(salaryRows);
-  }
-
   let splitCount = 0, holeriteCount = 0;
   for(const s of toAdd){
-    if(holeriteReplacements && holeriteReplacements.has(s)){
-      const { parts, file } = holeriteReplacements.get(s);
-      const receiptUrl = await uploadReceiptFile(file);
-      parts.forEach(p=>{
+    // Rows where a holerite PDF was attached (via the 📎 button, per row — same pattern
+    // as "+juros" for Empréstimo) get unfolded into Salário/INSS/IRRF/Empréstimo/etc.
+    // here, and only here, with the actual PDF uploaded to Storage so it stays available
+    // to reopen later from the ledger. Rows left without a PDF import exactly as-is.
+    if(s.holeriteParts){
+      const receiptUrl = s.holeriteFile ? await uploadReceiptFile(s.holeriteFile) : null;
+      s.holeriteParts.forEach(p=>{
         const cat = p.cat || 'Sem categoria';
         if(!STATE.cats.includes(cat)) STATE.cats.push(cat);
         const id = nextId++;
@@ -3298,6 +3249,10 @@ function wireEvents(){
     document.getElementById('payslipStep2').style.display = 'none';
     document.getElementById('payslipStep1').style.display = '';
     document.getElementById('payslipFileInfo').textContent = '';
+  });
+  document.getElementById('rowHoleriteFileInput').addEventListener('change', (e)=>{
+    const file = e.target.files[0];
+    if(file) handleRowHoleriteFile(file);
   });
   document.getElementById('imp_file').addEventListener('change', (e)=>{
     const file = e.target.files[0];
