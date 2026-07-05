@@ -44,6 +44,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
   import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
   import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+  import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js";
 
   const firebaseConfig = {
   apiKey: "AIzaSyBbHmk7yJ23FdhHG0zLc_nI58ypxrfZx1Y",
@@ -56,10 +57,11 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
   const fbApp = initializeApp(firebaseConfig);
   const auth = getAuth(fbApp);
   const db = getFirestore(fbApp);
+  const storage = getStorage(fbApp);
   setPersistence(auth, browserLocalPersistence).catch(()=>{});
 
   // Bridge into the classic (non-module) app script below, which can't use `import` directly.
-  window.__fb = { auth, db, signInWithEmailAndPassword, onAuthStateChanged, signOut, doc, getDoc, setDoc };
+  window.__fb = { auth, db, signInWithEmailAndPassword, onAuthStateChanged, signOut, doc, getDoc, setDoc, storage, storageRef, uploadBytes, getDownloadURL };
   window.dispatchEvent(new Event('firebase-ready'));
 </script>
 <style>
@@ -928,21 +930,7 @@ footer button{margin-left:6px;}
   </div>
 </div>
 
-<div class="modal-backdrop" id="linkHoleriteModalBackdrop">
-  <div class="modal" style="width:460px;">
-    <h3>Vincular holerite</h3>
-    <p style="font-size:13px;color:var(--text-muted);line-height:1.5;margin-top:-8px;">
-      Encontrei <b id="linkHoleriteCount">0</b> lançamento(s) de Salário nesta importação.
-      Se você tiver o holerite/recibo em PDF, anexe agora para já desmembrar em Salário, INSS, IRRF, Empréstimo etc.
-    </p>
-    <div class="field"><label>Holerite (PDF, opcional)</label><input type="file" id="linkHoleriteFile" accept="application/pdf"></div>
-    <div id="linkHoleriteInfo" class="import-hint"></div>
-    <div class="modal-actions">
-      <button class="btn-secondary" id="linkHoleriteSkipBtn">Continuar sem anexar</button>
-      <button class="btn-primary" id="linkHoleriteConfirmBtn">Anexar e desmembrar</button>
-    </div>
-  </div>
-</div>
+<input type="file" id="rowHoleriteFileInput" accept="application/pdf" style="display:none;">
 
 <div class="toast" id="toast"></div>
 
@@ -1036,13 +1024,13 @@ function markAllTxDirty(){
 }
 function encodeCompactRow(t, catIdx){
   if(!catIdx.has(t.cat)){ catIdx.set(t.cat, STATE.cats.length); STATE.cats.push(t.cat); }
-  return [t.id, parseInt(t.date.replace(/-/g,''),10), t.acc, t.dc==='C'?1:0, catIdx.get(t.cat), t.val, t.desc||''];
+  return [t.id, parseInt(t.date.replace(/-/g,''),10), t.acc, t.dc==='C'?1:0, catIdx.get(t.cat), t.val, t.desc||'', t.receiptUrl||''];
 }
 function decodeCompact(rows, accounts, cats){
   return rows.map(row=>{
     const ds = String(row[1]);
     const iso = ds.slice(0,4)+'-'+ds.slice(4,6)+'-'+ds.slice(6,8);
-    return { id:row[0], date:iso, acc:row[2], dc:row[3]===1?'C':'D', cat:cats[row[4]], val:row[5], desc:row[6]||'' };
+    return { id:row[0], date:iso, acc:row[2], dc:row[3]===1?'C':'D', cat:cats[row[4]], val:row[5], desc:row[6]||'', receiptUrl:row[7]||'' };
   });
 }
 
@@ -1279,7 +1267,7 @@ function renderLedger(reset){
       <div class="cat">${t.cat}</div>
       <div class="val ${(t.val<0||t.dc==='C')?'C':'D'}">${t.dc==='C'?'+ ':''}${fmtBRL(t.val)}</div>
       <div class="saldo">${fmtBRL(saldo)}</div>
-      <div class="row-actions"><button class="icon-btn editBtn" data-id="${t.id}" title="Editar">✎</button></div>
+      <div class="row-actions">${t.receiptUrl ? `<a href="${t.receiptUrl}" target="_blank" rel="noopener" class="icon-btn" title="Ver recibo anexado">📎</a>` : ''}<button class="icon-btn editBtn" data-id="${t.id}" title="Editar">✎</button></div>
     `;
     frag.appendChild(row);
   });
@@ -1960,7 +1948,8 @@ async function handlePayslipFile(file){
       rawBlock: b,
       dateISO: computePayslipBlockDate(b, parsed.depositDate),
       cat: 'Salário',
-      liquido: b.liquido ? parseBRL(b.liquido) : null
+      liquido: b.liquido ? parseBRL(b.liquido) : null,
+      sourceFile: file
     }));
     document.getElementById('payslipFileInfo').textContent = `${file.name} — ${payslipParsedBlocks.length} bloco(s) encontrado(s).`;
     renderPayslipBlocks();
@@ -1975,6 +1964,12 @@ async function handlePayslipFile(file){
 async function confirmPayslipImport(){
   const ccIdx = STATE.accounts.indexOf('Conta Corrente Itaú');
   let count = 0;
+  // The same PDF may cover more than one block (a férias receipt paying out across two
+  // months) — upload it once and reuse the same link on every transaction it produced,
+  // so any of them can reopen the original receipt later from the ledger.
+  const receiptUrl = payslipParsedBlocks.length && payslipParsedBlocks[0].sourceFile
+    ? await uploadReceiptFile(payslipParsedBlocks[0].sourceFile)
+    : null;
   payslipParsedBlocks.forEach(block=>{
     // The itemized Salário/INSS/IRRF/Empréstimo/etc. breakdown is only computed now, at
     // confirm time — never while the block was still showing as a single row for review.
@@ -1984,7 +1979,7 @@ async function confirmPayslipImport(){
       if(!STATE.cats.includes(cat)) STATE.cats.push(cat);
       const id = nextId++;
       const desc = p.standaloneDesc || p.label;
-      STATE.tx.push({ id, date: block.dateISO, acc: ccIdx, dc: p.dc, cat, val: p.val, desc });
+      STATE.tx.push({ id, date: block.dateISO, acc: ccIdx, dc: p.dc, cat, val: p.val, desc, receiptUrl: receiptUrl||'' });
       markTxDirty(id);
       count++;
     });
@@ -2149,7 +2144,7 @@ function renderStagedTable(){
       <div><input type="text" list="catList" value="${(s.cat||'').replace(/"/g,'&quot;')}" data-i="${i}" class="imp-cat" placeholder="categoria"></div>
       <div class="val ${(s.val<0||s.dc==='C')?'C':'D'}">${s.dc==='C'?'+ ':''}${fmtBRL(s.val)}</div>
       <div><select class="dc-mini imp-dc" data-i="${i}"><option value="D" ${s.dc==='D'?'selected':''}>D</option><option value="C" ${s.dc==='C'?'selected':''}>C</option></select></div>
-      <div>${(s.dc==='D' && (s.cat||'').toLowerCase()==='empréstimo') ? `<button class="icon-btn imp-split" data-i="${i}" title="Separar valor de juros deste lançamento">+juros</button>` : ''}</div>
+      <div>${(s.dc==='D' && (s.cat||'').toLowerCase()==='empréstimo') ? `<button class="icon-btn imp-split" data-i="${i}" title="Separar valor de juros deste lançamento">+juros</button>` : ''}${(s.cat||'').toLowerCase()==='salário' ? `<button class="icon-btn imp-holerite" data-i="${i}" title="${s.holeriteParts ? 'Holerite anexado — clique para trocar' : 'Anexar holerite (PDF) para desmembrar'}">${s.holeriteParts ? '✓ PDF' : '📎 PDF'}</button>` : ''}</div>
     `;
     frag.appendChild(row);
   });
@@ -2184,66 +2179,64 @@ function renderStagedTable(){
     renderStagedTable();
     showToast('Lançamento separado em Empréstimo + Juros.');
   }));
+  body.querySelectorAll('.imp-holerite').forEach(el=> el.addEventListener('click', e=>{
+    const i = parseInt(e.target.dataset.i,10);
+    const fileInput = document.getElementById('rowHoleriteFileInput');
+    fileInput.dataset.targetRow = i;
+    fileInput.dataset.targetKind = 'staged';
+    fileInput.value = '';
+    fileInput.click();
+  }));
 }
 
-function promptLinkHolerite(salaryRows){
-  return new Promise((resolve)=>{
-    document.getElementById('linkHoleriteCount').textContent = salaryRows.length;
-    document.getElementById('linkHoleriteFile').value = '';
-    document.getElementById('linkHoleriteInfo').textContent = '';
-    document.getElementById('linkHoleriteModalBackdrop').classList.add('show');
+// Shared by both the bank-statement staging table and the holerite-block preview: reads
+// a PDF picked for ONE specific row/block, parses it, and stashes the itemized parts on
+// that row so the actual split + upload only happens later, at "Confirmar importação".
+async function handleRowHoleriteFile(file){
+  const fileInput = document.getElementById('rowHoleriteFileInput');
+  const kind = fileInput.dataset.targetKind;
+  const i = parseInt(fileInput.dataset.targetRow,10);
+  const target = kind==='staged' ? importState.staged[i] : null;
+  if(!target) return;
+  showToast('Lendo holerite…');
+  try{
+    await loadPdfJs();
+    const buf = await file.arrayBuffer();
+    const text = await extractPdfText(buf);
+    const parsed = parsePayslipText(text);
+    if(!parsed.blocks.length){ showToast('Não reconheci nenhum evento nesse PDF.'); return; }
+    // If the PDF has more than one block (e.g. a férias receipt paying out across two
+    // months), pick whichever block's líquido is closest to this row's value.
+    let best = parsed.blocks[0], bestDiff = Infinity;
+    parsed.blocks.forEach(b=>{
+      const liq = b.liquido ? parseBRL(b.liquido) : null;
+      if(liq==null) return;
+      const diff = Math.abs(liq - target.val);
+      if(diff<bestDiff){ bestDiff=diff; best=b; }
+    });
+    target.holeriteFile = file;
+    target.holeriteParts = transformPayslipBlock(best);
+    renderStagedTable();
+    showToast(`Holerite anexado — será desmembrado em ${target.holeriteParts.length} lançamentos ao confirmar.`);
+  }catch(e){
+    console.error('row holerite parse failed', e);
+    showToast('Não consegui ler esse PDF.');
+  }
+}
 
-    const skipBtn = document.getElementById('linkHoleriteSkipBtn');
-    const confirmBtn = document.getElementById('linkHoleriteConfirmBtn');
-    const cleanup = ()=>{
-      document.getElementById('linkHoleriteModalBackdrop').classList.remove('show');
-      skipBtn.removeEventListener('click', onSkip);
-      confirmBtn.removeEventListener('click', onConfirm);
-    };
-    const onSkip = ()=>{ cleanup(); resolve(null); };
-    const onConfirm = async ()=>{
-      const file = document.getElementById('linkHoleriteFile').files[0];
-      if(!file){ cleanup(); resolve(null); return; }
-      document.getElementById('linkHoleriteInfo').textContent = 'Lendo PDF…';
-      try{
-        await loadPdfJs();
-        const buf = await file.arrayBuffer();
-        const text = await extractPdfText(buf);
-        const parsed = parsePayslipText(text);
-        if(!parsed.blocks.length){
-          document.getElementById('linkHoleriteInfo').textContent = 'Não reconheci nenhum evento nesse PDF — continuando sem desmembrar.';
-          setTimeout(()=>{ cleanup(); resolve(null); }, 1400);
-          return;
-        }
-        // Match each Salário row to the parsed block with the closest líquido value —
-        // a real holerite's net pay should match the bank credit almost exactly.
-        const replacements = new Map();
-        const usedBlocks = new Set();
-        salaryRows.forEach(row=>{
-          let best=null, bestDiff=Infinity;
-          parsed.blocks.forEach((b,bi)=>{
-            if(usedBlocks.has(bi)) return;
-            const liq = b.liquido ? parseBRL(b.liquido) : null;
-            if(liq==null) return;
-            const diff = Math.abs(liq - row.val);
-            if(diff<bestDiff){ bestDiff=diff; best={block:b, bi}; }
-          });
-          if(best && bestDiff<0.05){
-            usedBlocks.add(best.bi);
-            replacements.set(row, transformPayslipBlock(best.block));
-          }
-        });
-        cleanup();
-        resolve(replacements.size ? replacements : null);
-      }catch(e){
-        console.error('link holerite failed', e);
-        document.getElementById('linkHoleriteInfo').textContent = 'Erro ao ler esse PDF — continuando sem desmembrar.';
-        setTimeout(()=>{ cleanup(); resolve(null); }, 1400);
-      }
-    };
-    skipBtn.addEventListener('click', onSkip);
-    confirmBtn.addEventListener('click', onConfirm);
-  });
+async function uploadReceiptFile(file){
+  try{
+    const fb = window.__fb;
+    const uid = window.__currentUid;
+    const path = `receipts/${uid}/${Date.now()}_${file.name}`;
+    const ref = fb.storageRef(fb.storage, path);
+    await fb.uploadBytes(ref, file);
+    return await fb.getDownloadURL(ref);
+  }catch(e){
+    console.error('receipt upload failed', e);
+    showToast('Aviso: não consegui salvar o PDF anexado (o lançamento foi desmembrado mesmo assim).');
+    return null;
+  }
 }
 
 async function confirmImport(){
@@ -2255,28 +2248,23 @@ async function confirmImport(){
     if(!confirm(`${missingCat.length} lançamento(s) sem categoria. Continuar mesmo assim? (ficarão como "Sem categoria")`)) return;
   }
 
-  // If any row was classified as Salário, offer to attach the matching holerite so it
-  // can be unfolded into Salário/INSS/IRRF/Empréstimo/etc. right here — instead of the
-  // single combined credit — before anything is actually written to the ledger.
-  const salaryRows = toAdd.filter(s=> (s.cat||'').trim().toLowerCase()==='salário');
-  let holeriteReplacements = null;
-  if(salaryRows.length){
-    holeriteReplacements = await promptLinkHolerite(salaryRows);
-  }
-
   let splitCount = 0, holeriteCount = 0;
-  toAdd.forEach(s=>{
-    if(holeriteReplacements && holeriteReplacements.has(s)){
-      holeriteReplacements.get(s).forEach(p=>{
+  for(const s of toAdd){
+    // Rows where a holerite PDF was attached (via the 📎 button, per row) get unfolded
+    // into Salário/INSS/IRRF/Empréstimo/etc. here — and only here — with the actual PDF
+    // uploaded to Storage so it stays available to reopen later from the ledger.
+    if(s.holeriteParts){
+      const receiptUrl = s.holeriteFile ? await uploadReceiptFile(s.holeriteFile) : null;
+      s.holeriteParts.forEach(p=>{
         const cat = p.cat || 'Sem categoria';
         if(!STATE.cats.includes(cat)) STATE.cats.push(cat);
         const id = nextId++;
         const desc = p.standaloneDesc || p.label;
-        STATE.tx.push({ id, date: s.date, acc: accIdx, dc: p.dc, cat, val: p.val, desc });
+        STATE.tx.push({ id, date: s.date, acc: accIdx, dc: p.dc, cat, val: p.val, desc, receiptUrl: receiptUrl||'' });
         markTxDirty(id);
       });
       holeriteCount++;
-      return;
+      continue;
     }
     const cat = s.cat || 'Sem categoria';
     // Only after the user's own classification (cat === 'Empréstimo', whether that came
@@ -2292,13 +2280,13 @@ async function confirmImport(){
         markTxDirty(id);
       });
       splitCount++;
-      return;
+      continue;
     }
     if(!STATE.cats.includes(cat)) STATE.cats.push(cat);
     const id = nextId++;
     STATE.tx.push({ id, date: s.date, acc: accIdx, dc: s.dc, cat, val: s.val, desc: s.desc });
     markTxDirty(id);
-  });
+  }
   await persistTx();
   await runExtraSync();
   const extraMsgs = [];
@@ -2887,7 +2875,7 @@ function renderDetTable(reset){
       <div class="acc-tag">${STATE.accounts[t.acc]}</div>
       <div class="cat">${t.cat||'—'}</div>
       <div class="desc" title="${(t.desc||'').replace(/"/g,'&quot;')}">${t.desc||'<span style="color:var(--text-faint)">—</span>'}</div>
-      <div class="val ${(t.val<0||t.dc==='C')?'C':'D'}">${t.dc==='C'?'+ ':''}${fmtBRL(t.val)}</div>
+      <div class="val ${(t.val<0||t.dc==='C')?'C':'D'}">${t.dc==='C'?'+ ':''}${fmtBRL(t.val)}${t.receiptUrl?` <a href="${t.receiptUrl}" target="_blank" rel="noopener" title="Ver recibo anexado" style="margin-left:4px;">📎</a>`:''}</div>
     `;
     frag.appendChild(row);
   });
@@ -3248,6 +3236,10 @@ function wireEvents(){
     document.getElementById('payslipStep2').style.display = 'none';
     document.getElementById('payslipStep1').style.display = '';
     document.getElementById('payslipFileInfo').textContent = '';
+  });
+  document.getElementById('rowHoleriteFileInput').addEventListener('change', (e)=>{
+    const file = e.target.files[0];
+    if(file) handleRowHoleriteFile(file);
   });
   document.getElementById('imp_file').addEventListener('change', (e)=>{
     const file = e.target.files[0];
