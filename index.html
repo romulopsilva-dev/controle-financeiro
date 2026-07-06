@@ -199,8 +199,8 @@ input,select,textarea{font-family:inherit;}
 .ledger-toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:10px;flex-wrap:wrap;}
 .ledger-count{font-size:12px;color:var(--text-faint);}
 .ledger{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
-.ledger-head{display:grid;grid-template-columns:92px 110px 1fr 130px 130px 110px 70px;gap:8px;padding:10px 16px;font-size:11px;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-faint);border-bottom:1px solid var(--border);}
-.ledger-row{display:grid;grid-template-columns:92px 110px 1fr 130px 130px 110px 70px;gap:8px;padding:11px 16px;font-size:13px;border-bottom:1px solid var(--border);align-items:center;position:relative;}
+.ledger-head{display:grid;grid-template-columns:92px 110px 1fr 130px 110px 130px 130px 70px;gap:8px;padding:10px 16px;font-size:11px;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-faint);border-bottom:1px solid var(--border);}
+.ledger-row{display:grid;grid-template-columns:92px 110px 1fr 130px 110px 130px 130px 70px;gap:8px;padding:11px 16px;font-size:13px;border-bottom:1px solid var(--border);align-items:center;position:relative;}
 .ledger-row:last-child{border-bottom:none;}
 .ledger-row:hover{background:var(--surface-2);}
 .ledger-row::before{content:'';position:absolute;left:0;top:0;height:100%;width:3px;background:var(--tick-color,var(--text-faint));}
@@ -275,7 +275,7 @@ footer button{margin-left:6px;}
 .staged-row .imp-desc{width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 9px;font-size:12.5px;min-width:0;}
 .staged-row .imp-desc:focus{border-color:var(--gold);outline:none;}
 .staged-row .dup-badge{font-size:10px;color:var(--expense);background:var(--expense-soft);padding:2px 6px;border-radius:10px;margin-left:6px;white-space:nowrap;}
-.sub-tag{font-size:10.5px;color:var(--gold);background:var(--gold-soft);padding:2px 7px;border-radius:10px;margin-left:6px;white-space:nowrap;}
+.sub-tag{font-size:10.5px;color:var(--gold);background:var(--gold-soft);padding:2px 7px;border-radius:10px;white-space:nowrap;}
 .staged-row .val{font-family:'IBM Plex Mono',monospace;text-align:right;font-weight:600;}
 .staged-row .val.D{color:var(--expense);}
 .staged-row .val.C{color:var(--income);}
@@ -417,6 +417,7 @@ footer button{margin-left:6px;}
   .ledger-row .val{order:3; margin-left:auto; font-size:14px;}
   .ledger-row .desc{order:4; flex:1 0 100%; white-space:normal; font-size:13.5px; color:var(--text);}
   .ledger-row .cat{order:5; font-size:11.5px;}
+  .ledger-row .sub{order:5; font-size:11.5px;}
   .ledger-row .saldo{order:6; font-size:11px; margin-left:auto;}
   .ledger-row .row-actions{order:7; opacity:1; margin-left:6px;}
 
@@ -605,7 +606,7 @@ footer button{margin-left:6px;}
         </div>
         <div class="ledger">
           <div class="ledger-head">
-            <div>Data</div><div>Conta</div><div>Descrição</div><div>Categoria</div><div style="text-align:right;">Valor</div><div style="text-align:right;">Saldo</div><div></div>
+            <div>Data</div><div>Conta</div><div>Descrição</div><div>Categoria</div><div>Sub-conta</div><div style="text-align:right;">Valor</div><div style="text-align:right;">Saldo Total</div><div></div>
           </div>
           <div id="ledgerBody"></div>
         </div>
@@ -1149,14 +1150,19 @@ function accColor(idx){ return ACC_COLORS[idx % ACC_COLORS.length]; }
 
 function computeAccountBalances(){
   const bal = STATE.accounts.map(()=>0);
+  let combinedBal = 0;
   // sort by date then id ascending for stable running balance
   const sorted = [...STATE.tx].sort((a,b)=> a.date===b.date ? a.id-b.id : a.date.localeCompare(b.date));
   const runningMap = new Map();
+  const combinedRunningMap = new Map();
   sorted.forEach(t=>{
-    bal[t.acc] += (t.dc==='C'? t.val : -t.val);
+    const delta = (t.dc==='C'? t.val : -t.val);
+    bal[t.acc] += delta;
+    combinedBal += delta;
     runningMap.set(t.id, bal[t.acc]);
+    combinedRunningMap.set(t.id, combinedBal);
   });
-  return { bal, runningMap };
+  return { bal, runningMap, combinedRunningMap };
 }
 
 function inPeriod(dateISO){
@@ -1280,7 +1286,7 @@ function renderAccSelects(){
 function renderLedger(reset){
   if(reset) visibleLimit = 200;
   const filtered = applyFilters();
-  const {runningMap} = computeAccountBalances();
+  const {combinedRunningMap} = computeAccountBalances();
   const sortedDesc = [...filtered].sort((a,b)=> a.date===b.date ? b.id-a.id : b.date.localeCompare(a.date));
   document.getElementById('ledgerCount').textContent = `${filtered.length.toLocaleString('pt-BR')} lançamentos encontrados`;
   const body = document.getElementById('ledgerBody');
@@ -1296,12 +1302,13 @@ function renderLedger(reset){
     const row = document.createElement('div');
     row.className = 'ledger-row';
     row.style.setProperty('--tick-color', (t.val<0||t.dc==='C')? 'var(--income)':'var(--expense)');
-    const saldo = runningMap.get(t.id);
+    const saldo = combinedRunningMap.get(t.id);
     row.innerHTML = `
       <div class="date">${fmtDateBR(t.date)}</div>
       <div class="acc-tag">${STATE.accounts[t.acc]}</div>
       <div class="desc" title="${(t.desc||'').replace(/"/g,'&quot;')}">${t.desc || '<span style="color:var(--text-faint)">—</span>'}</div>
-      <div class="cat">${t.cat}${t.sub?`<span class="sub-tag">${t.sub}</span>`:''}</div>
+      <div class="cat">${t.cat}</div>
+      <div class="sub">${t.sub?`<span class="sub-tag">${t.sub}</span>`:''}</div>
       <div class="val ${(t.val<0||t.dc==='C')?'C':'D'}">${t.dc==='C'?'+ ':''}${fmtBRL(t.val)}</div>
       <div class="saldo">${fmtBRL(saldo)}</div>
       <div class="row-actions">${t.receiptUrl ? `<a href="${t.receiptUrl}" target="_blank" rel="noopener" class="icon-btn" title="Ver recibo anexado">📎</a>` : ''}<button class="icon-btn editBtn" data-id="${t.id}" title="Editar">✎</button></div>
