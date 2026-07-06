@@ -346,8 +346,8 @@ footer button{margin-left:6px;}
 #pivotTable tr.total-row td{font-weight:700;color:var(--text);background:var(--surface-2);}
 
 /* Consulta Detalhada */
-.det-row-head{grid-template-columns:92px 130px 130px 1fr 120px 40px;}
-.det-row{display:grid;grid-template-columns:92px 130px 130px 1fr 120px 40px;gap:8px;padding:10px 16px;font-size:13px;border-bottom:1px solid var(--border);align-items:center;}
+.det-row-head{grid-template-columns:92px 130px 110px 110px 1fr 120px 40px;}
+.det-row{display:grid;grid-template-columns:92px 130px 110px 110px 1fr 120px 40px;gap:8px;padding:10px 16px;font-size:13px;border-bottom:1px solid var(--border);align-items:center;}
 .det-row:last-child{border-bottom:none;}
 .det-row:hover{background:var(--surface-2);}
 .det-row .date{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text-muted);}
@@ -881,6 +881,10 @@ footer button{margin-left:6px;}
               <select id="det_cat"><option value="all">Todas</option></select>
             </div>
             <div class="field">
+              <label>Sub-conta</label>
+              <select id="det_sub"><option value="all">Todas</option></select>
+            </div>
+            <div class="field">
               <label>De</label>
               <input type="date" id="det_from">
             </div>
@@ -914,7 +918,7 @@ footer button{margin-left:6px;}
         </div>
         <div class="ledger" id="detTableWrap">
           <div class="ledger-head det-row-head">
-            <div>Data</div><div>Conta</div><div>Categoria</div><div>Descrição</div><div style="text-align:right;">Valor</div><div></div>
+            <div>Data</div><div>Conta</div><div>Categoria</div><div>Sub-conta</div><div>Descrição</div><div style="text-align:right;">Valor</div><div></div>
           </div>
           <div id="detBody"></div>
         </div>
@@ -2989,7 +2993,7 @@ function runPivot(){
 }
 
 /* ============ Consulta Detalhada (lançamento por lançamento, qualquer categoria) ============ */
-let detFilters = { acc:'all', dc:'all', cat:'all', from:'', to:'', min:null, max:null, search:'' };
+let detFilters = { acc:'all', dc:'all', cat:'all', sub:'all', from:'', to:'', min:null, max:null, search:'' };
 let detVisibleLimit = 200;
 
 function renderDetFilterOptions(){
@@ -3003,6 +3007,13 @@ function renderDetFilterOptions(){
   catSel.innerHTML = '<option value="all">Todas</option>';
   cats.forEach(c=>{ const o=document.createElement('option'); o.value=c; o.textContent=c; catSel.appendChild(o); });
   catSel.value = cur && (cur==='all' || cats.includes(cur)) ? cur : 'all';
+
+  const subSel = document.getElementById('det_sub');
+  const curSub = subSel.value;
+  const subs = [...new Set(STATE.tx.map(t=>t.sub).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  subSel.innerHTML = '<option value="all">Todas</option>';
+  subs.forEach(s=>{ const o=document.createElement('option'); o.value=s; o.textContent=s; subSel.appendChild(o); });
+  subSel.value = curSub && (curSub==='all' || subs.includes(curSub)) ? curSub : 'all';
 }
 
 function applyDetFilters(){
@@ -3011,6 +3022,7 @@ function applyDetFilters(){
     if(detFilters.acc!=='all' && String(t.acc)!==detFilters.acc) return false;
     if(detFilters.dc!=='all' && t.dc!==detFilters.dc) return false;
     if(detFilters.cat!=='all' && t.cat!==detFilters.cat) return false;
+    if(detFilters.sub!=='all' && (t.sub||'')!==detFilters.sub) return false;
     if(detFilters.from && t.date < detFilters.from) return false;
     if(detFilters.to && t.date > detFilters.to) return false;
     if(detFilters.min!=null && Math.abs(t.val) < detFilters.min) return false;
@@ -3038,6 +3050,7 @@ function renderDetTable(reset){
       <div class="date">${fmtDateBR(t.date)}</div>
       <div class="acc-tag">${STATE.accounts[t.acc]}</div>
       <div class="cat">${t.cat||'—'}</div>
+      <div class="sub">${t.sub?`<span class="sub-tag">${t.sub}</span>`:''}</div>
       <div class="desc" title="${(t.desc||'').replace(/"/g,'&quot;')}">${t.desc||'<span style="color:var(--text-faint)">—</span>'}</div>
       <div class="val ${(t.val<0||t.dc==='C')?'C':'D'}">${t.dc==='C'?'+ ':''}${fmtBRL(t.val)}${t.receiptUrl?` <a href="${t.receiptUrl}" target="_blank" rel="noopener" title="Ver recibo anexado" style="margin-left:4px;">📎</a>`:''}</div>
       <div><button class="icon-btn editBtn" data-id="${t.id}" title="Editar">✎</button></div>
@@ -3565,6 +3578,7 @@ function wireEvents(){
   document.getElementById('det_acc').addEventListener('change', e=>{ detFilters.acc = e.target.value; renderDetTable(true); });
   document.getElementById('det_dc').addEventListener('change', e=>{ detFilters.dc = e.target.value; renderDetTable(true); });
   document.getElementById('det_cat').addEventListener('change', e=>{ detFilters.cat = e.target.value; renderDetTable(true); });
+  document.getElementById('det_sub').addEventListener('change', e=>{ detFilters.sub = e.target.value; renderDetTable(true); });
   document.getElementById('det_from').addEventListener('change', e=>{ detFilters.from = e.target.value; renderDetTable(true); });
   document.getElementById('det_to').addEventListener('change', e=>{ detFilters.to = e.target.value; renderDetTable(true); });
   document.getElementById('det_min').addEventListener('input', e=>{ detFilters.min = e.target.value===''?null:parseFloat(e.target.value); renderDetTable(true); });
@@ -3577,10 +3591,11 @@ function wireEvents(){
   });
   document.getElementById('detLoadMoreBtn').addEventListener('click', ()=>{ detVisibleLimit += 200; renderDetTable(false); });
   document.getElementById('detClearBtn').addEventListener('click', ()=>{
-    detFilters = { acc:'all', dc:'all', cat:'all', from:'', to:'', min:null, max:null, search:'' };
+    detFilters = { acc:'all', dc:'all', cat:'all', sub:'all', from:'', to:'', min:null, max:null, search:'' };
     document.getElementById('det_acc').value='all';
     document.getElementById('det_dc').value='all';
     document.getElementById('det_cat').value='all';
+    document.getElementById('det_sub').value='all';
     document.getElementById('det_from').value='';
     document.getElementById('det_to').value='';
     document.getElementById('det_min').value='';
