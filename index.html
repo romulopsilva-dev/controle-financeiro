@@ -353,6 +353,11 @@ footer button{margin-left:6px;}
 .det-row .date{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text-muted);}
 .det-row .acc-tag{font-size:11.5px;color:var(--text-faint);}
 .det-row .cat{font-size:12.5px;color:var(--text-muted);}
+.sortable-th{cursor:pointer;user-select:none;display:flex;align-items:center;gap:4px;transition:color 0.15s;}
+.sortable-th:hover{color:var(--gold);}
+.sortable-th.active{color:var(--gold);}
+.sortable-th .sort-arrow{font-size:9px;opacity:0.5;}
+.sortable-th.active .sort-arrow{opacity:1;}
 .det-row .val{font-family:'IBM Plex Mono',monospace;text-align:right;font-weight:600;}
 
 /* Reconciliation check */
@@ -917,8 +922,8 @@ footer button{margin-left:6px;}
           <div class="ledger-count" id="detCount">—</div>
         </div>
         <div class="ledger" id="detTableWrap">
-          <div class="ledger-head det-row-head">
-            <div>Data</div><div>Conta</div><div>Categoria</div><div>Sub-conta</div><div>Descrição</div><div style="text-align:right;">Valor</div><div></div>
+          <div class="ledger-head det-row-head" id="detHead">
+            <div class="sortable-th" data-sort="date">Data</div><div class="sortable-th" data-sort="acc">Conta</div><div class="sortable-th" data-sort="cat">Categoria</div><div class="sortable-th" data-sort="sub">Sub-conta</div><div class="sortable-th" data-sort="desc">Descrição</div><div class="sortable-th" data-sort="val" style="text-align:right;justify-content:flex-end;">Valor</div><div></div>
           </div>
           <div id="detBody"></div>
         </div>
@@ -3032,10 +3037,48 @@ function applyDetFilters(){
   });
 }
 
+let detSort = { field:'date', dir:'desc' };
+
+function sortDetRows(rows){
+  const { field, dir } = detSort;
+  const mult = dir==='asc' ? 1 : -1;
+  const getVal = (t)=>{
+    switch(field){
+      case 'date': return t.date;
+      case 'acc': return STATE.accounts[t.acc]||'';
+      case 'cat': return (t.cat||'').toLowerCase();
+      case 'sub': return (t.sub||'').toLowerCase();
+      case 'desc': return (t.desc||'').toLowerCase();
+      case 'val': return t.dc==='D' ? -t.val : t.val;
+      default: return t.date;
+    }
+  };
+  return [...rows].sort((a,b)=>{
+    const va = getVal(a), vb = getVal(b);
+    let cmp;
+    if(typeof va==='number' && typeof vb==='number') cmp = va-vb;
+    else cmp = String(va).localeCompare(String(vb), 'pt-BR');
+    if(cmp===0) cmp = a.id-b.id; // stable tie-break
+    return cmp*mult;
+  });
+}
+
+function renderDetSortHeader(){
+  document.querySelectorAll('#detHead .sortable-th').forEach(th=>{
+    const field = th.dataset.sort;
+    const active = field===detSort.field;
+    th.classList.toggle('active', active);
+    let arrow = th.querySelector('.sort-arrow');
+    if(!arrow){ arrow = document.createElement('span'); arrow.className='sort-arrow'; th.appendChild(arrow); }
+    arrow.textContent = active ? (detSort.dir==='asc'?'▲':'▼') : '▲▼';
+  });
+}
+
 function renderDetTable(reset){
   if(reset) detVisibleLimit = 200;
   const filtered = applyDetFilters();
-  const sorted = [...filtered].sort((a,b)=> a.date===b.date? b.id-a.id : b.date.localeCompare(a.date));
+  const sorted = sortDetRows(filtered);
+  renderDetSortHeader();
   const total = filtered.reduce((s,t)=> s + (t.dc==='D'? -t.val : t.val), 0);
   document.getElementById('detCount').textContent = `${filtered.length.toLocaleString('pt-BR')} lançamentos · soma líquida: ${fmtBRL(total)}`;
   const body = document.getElementById('detBody');
@@ -3579,6 +3622,14 @@ function wireEvents(){
   document.getElementById('det_dc').addEventListener('change', e=>{ detFilters.dc = e.target.value; renderDetTable(true); });
   document.getElementById('det_cat').addEventListener('change', e=>{ detFilters.cat = e.target.value; renderDetTable(true); });
   document.getElementById('det_sub').addEventListener('change', e=>{ detFilters.sub = e.target.value; renderDetTable(true); });
+  document.getElementById('detHead').addEventListener('click', e=>{
+    const th = e.target.closest('.sortable-th');
+    if(!th) return;
+    const field = th.dataset.sort;
+    if(detSort.field===field){ detSort.dir = detSort.dir==='asc' ? 'desc' : 'asc'; }
+    else { detSort.field = field; detSort.dir = (field==='val' || field==='date') ? 'desc' : 'asc'; }
+    renderDetTable(false);
+  });
   document.getElementById('det_from').addEventListener('change', e=>{ detFilters.from = e.target.value; renderDetTable(true); });
   document.getElementById('det_to').addEventListener('change', e=>{ detFilters.to = e.target.value; renderDetTable(true); });
   document.getElementById('det_min').addEventListener('input', e=>{ detFilters.min = e.target.value===''?null:parseFloat(e.target.value); renderDetTable(true); });
