@@ -275,6 +275,7 @@ footer button{margin-left:6px;}
 .staged-row .imp-desc{width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 9px;font-size:12.5px;min-width:0;}
 .staged-row .imp-desc:focus{border-color:var(--gold);outline:none;}
 .staged-row .dup-badge{font-size:10px;color:var(--expense);background:var(--expense-soft);padding:2px 6px;border-radius:10px;margin-left:6px;white-space:nowrap;}
+.sub-tag{font-size:10.5px;color:var(--gold);background:var(--gold-soft);padding:2px 7px;border-radius:10px;margin-left:6px;white-space:nowrap;}
 .staged-row .val{font-family:'IBM Plex Mono',monospace;text-align:right;font-weight:600;}
 .staged-row .val.D{color:var(--expense);}
 .staged-row .val.C{color:var(--income);}
@@ -525,6 +526,8 @@ footer button{margin-left:6px;}
       </div>
       <div class="field"><label>Valor (R$)</label><input type="number" id="f_val" step="0.01" min="0" placeholder="0,00" required></div>
       <div class="field"><label>Descrição</label><input type="text" id="f_desc" placeholder="opcional"></div>
+      <div class="field"><label>Sub-conta</label><input type="text" id="f_sub" list="subList" placeholder="opcional, ex: Netflix"></div>
+      <datalist id="subList"></datalist>
       <button type="submit" class="btn-primary">+ Adicionar</button>
     </form>
   </div>
@@ -936,6 +939,7 @@ footer button{margin-left:6px;}
     <div class="field"><label style="font-size:11px;color:var(--text-muted);">Categoria</label><input type="text" id="e_cat" list="catList"></div>
     <div class="field"><label style="font-size:11px;color:var(--text-muted);">Valor</label><input type="number" step="0.01" id="e_val"></div>
     <div class="field"><label style="font-size:11px;color:var(--text-muted);">Descrição</label><input type="text" id="e_desc"></div>
+    <div class="field"><label style="font-size:11px;color:var(--text-muted);">Sub-conta</label><input type="text" id="e_sub" list="subList" placeholder="opcional, ex: Netflix"></div>
     <div class="modal-actions">
       <button class="btn-danger" id="deleteEntryBtn">Excluir</button>
       <button class="btn-secondary" id="cancelEditBtn">Cancelar</button>
@@ -1045,13 +1049,13 @@ function encodeCompactRow(t, catIdx){
   if(!catIdx.has(t.cat)){ catIdx.set(t.cat, STATE.cats.length); STATE.cats.push(t.cat); }
   // Firestore rejects arrays-of-arrays ("Nested arrays are not supported"), so each row
   // must be an object/map, not a positional array, even though that costs a bit more space.
-  return { i:t.id, d:parseInt(t.date.replace(/-/g,''),10), a:t.acc, c:t.dc==='C'?1:0, k:catIdx.get(t.cat), v:t.val, s:t.desc||'', r:t.receiptUrl||'', al:t.autoLinked?1:0, sx:t.sourceTxId||0 };
+  return { i:t.id, d:parseInt(t.date.replace(/-/g,''),10), a:t.acc, c:t.dc==='C'?1:0, k:catIdx.get(t.cat), v:t.val, s:t.desc||'', r:t.receiptUrl||'', al:t.autoLinked?1:0, sx:t.sourceTxId||0, sc:t.sub||'' };
 }
 function decodeCompact(rows, accounts, cats){
   return rows.map(row=>{
     const ds = String(row.d);
     const iso = ds.slice(0,4)+'-'+ds.slice(4,6)+'-'+ds.slice(6,8);
-    return { id:row.i, date:iso, acc:row.a, dc:row.c===1?'C':'D', cat:cats[row.k], val:row.v, desc:row.s||'', receiptUrl:row.r||'', autoLinked: row.al===1, sourceTxId: row.sx||null };
+    return { id:row.i, date:iso, acc:row.a, dc:row.c===1?'C':'D', cat:cats[row.k], val:row.v, desc:row.s||'', receiptUrl:row.r||'', autoLinked: row.al===1, sourceTxId: row.sx||null, sub: row.sc||'' };
   });
 }
 
@@ -1247,6 +1251,18 @@ function renderCatDatalist(){
   });
 }
 
+function renderSubDatalist(){
+  const dl = document.getElementById('subList');
+  if(!dl) return;
+  dl.innerHTML = '';
+  const subs = [...new Set(STATE.tx.map(t=>t.sub).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  subs.forEach(s=>{
+    const o = document.createElement('option');
+    o.value = s;
+    dl.appendChild(o);
+  });
+}
+
 function renderAccSelects(){
   ['f_acc','e_acc'].forEach(id=>{
     const sel = document.getElementById(id);
@@ -1285,7 +1301,7 @@ function renderLedger(reset){
       <div class="date">${fmtDateBR(t.date)}</div>
       <div class="acc-tag">${STATE.accounts[t.acc]}</div>
       <div class="desc" title="${(t.desc||'').replace(/"/g,'&quot;')}">${t.desc || '<span style="color:var(--text-faint)">—</span>'}</div>
-      <div class="cat">${t.cat}</div>
+      <div class="cat">${t.cat}${t.sub?`<span class="sub-tag">${t.sub}</span>`:''}</div>
       <div class="val ${(t.val<0||t.dc==='C')?'C':'D'}">${t.dc==='C'?'+ ':''}${fmtBRL(t.val)}</div>
       <div class="saldo">${fmtBRL(saldo)}</div>
       <div class="row-actions">${t.receiptUrl ? `<a href="${t.receiptUrl}" target="_blank" rel="noopener" class="icon-btn" title="Ver recibo anexado">📎</a>` : ''}<button class="icon-btn editBtn" data-id="${t.id}" title="Editar">✎</button></div>
@@ -2034,6 +2050,7 @@ async function confirmPayslipImport(){
   document.getElementById('payslipFileInfo').textContent = '';
   document.querySelector('.tab-btn[data-tab="lancamentos"]').click();
   renderCatDatalist();
+  renderSubDatalist();
   refreshUI();
   refreshLoans();
   refreshFinancing();
@@ -2432,6 +2449,7 @@ async function confirmImport(){
   resetImportPanel();
   document.querySelector('.tab-btn[data-tab="lancamentos"]').click();
   renderCatDatalist();
+  renderSubDatalist();
   refreshUI();
   refreshFinancing();
   refreshLoans();
@@ -2777,13 +2795,16 @@ function detectStreamingProvider(desc){
   for(const p of STREAMING_PROVIDERS){ if(d.includes(p.key)) return p.label; }
   return 'Outro';
 }
+// Prefer the stored sub-conta (which may have been backfilled or hand-edited) over
+// re-detecting it from the description every time, so a user's manual correction sticks.
+function getStreamProvider(t){ return t.sub || detectStreamingProvider(t.desc); }
 let streamFilters = { provider:'all' };
 let streamVisibleLimit = 200;
 let chartStreamProvider;
 function renderStreamSummary(){
   const rows = STATE.tx.filter(t=>t.cat==='Streaming' && t.dc==='D');
   const total = rows.reduce((s,t)=>s+t.val,0);
-  const providers = new Set(rows.map(t=>detectStreamingProvider(t.desc)));
+  const providers = new Set(rows.map(t=>getStreamProvider(t)));
   const row = document.getElementById('streamSummaryRow');
   row.innerHTML = `
     <div class="acc-card"><div class="name">Total gasto (todo o período)</div><div class="bal mono">${fmtBRL(total)}</div><div class="meta">${rows.length.toLocaleString('pt-BR')} lançamentos</div></div>
@@ -2796,7 +2817,7 @@ function renderStreamChartAndList(){
   const cutISO = `${now.getFullYear()-1}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
   const recentRows = rows.filter(t=>t.date >= cutISO);
   const byProvider = new Map();
-  recentRows.forEach(t=> byProvider.set(detectStreamingProvider(t.desc), (byProvider.get(detectStreamingProvider(t.desc))||0)+t.val));
+  recentRows.forEach(t=> byProvider.set(getStreamProvider(t), (byProvider.get(getStreamProvider(t))||0)+t.val));
   const sorted = [...byProvider.entries()].sort((a,b)=>b[1]-a[1]);
   const ctx = document.getElementById('chartStreamProvider').getContext('2d');
   if(chartStreamProvider) chartStreamProvider.destroy();
@@ -2810,7 +2831,7 @@ function renderStreamChartAndList(){
 
   const allProvider = new Map(), countProvider = new Map();
   rows.forEach(t=>{
-    const p = detectStreamingProvider(t.desc);
+    const p = getStreamProvider(t);
     allProvider.set(p, (allProvider.get(p)||0)+t.val);
     countProvider.set(p, (countProvider.get(p)||0)+1);
   });
@@ -2827,7 +2848,7 @@ function renderStreamChartAndList(){
 function renderStreamFilterOptions(){
   const sel = document.getElementById('stream_filter_provider');
   const cur = sel.value;
-  const providers = [...new Set(STATE.tx.filter(t=>t.cat==='Streaming').map(t=>detectStreamingProvider(t.desc)))].sort();
+  const providers = [...new Set(STATE.tx.filter(t=>t.cat==='Streaming').map(t=>getStreamProvider(t)))].sort();
   sel.innerHTML = '<option value="all">Todos os serviços</option>';
   providers.forEach(p=>{ const o=document.createElement('option'); o.value=p; o.textContent=p; sel.appendChild(o); });
   sel.value = cur && (cur==='all'||providers.includes(cur)) ? cur : 'all';
@@ -2836,7 +2857,7 @@ function renderStreamTable(reset){
   if(reset) streamVisibleLimit = 200;
   const filtered = STATE.tx.filter(t=>{
     if(t.cat!=='Streaming') return false;
-    if(streamFilters.provider!=='all' && detectStreamingProvider(t.desc)!==streamFilters.provider) return false;
+    if(streamFilters.provider!=='all' && getStreamProvider(t)!==streamFilters.provider) return false;
     return true;
   });
   const sorted = [...filtered].sort((a,b)=> a.date===b.date? b.id-a.id : b.date.localeCompare(a.date));
@@ -2852,7 +2873,7 @@ function renderStreamTable(reset){
     row.innerHTML = `
       <div class="date">${fmtDateBR(t.date)}</div>
       <div class="acc-tag">${STATE.accounts[t.acc]}</div>
-      <div class="provider">${detectStreamingProvider(t.desc)}</div>
+      <div class="provider">${getStreamProvider(t)}</div>
       <div class="desc">${t.desc||'<span style="color:var(--text-faint)">—</span>'}</div>
       <div class="val">${fmtBRL(t.val)}</div>
     `;
@@ -3212,6 +3233,25 @@ function syncCardPaymentsFromLedger(){
   return changed;
 }
 
+// One-time (idempotent) backfill: fills the optional "sub-conta" field for historical
+// Streaming transactions using the same provider-detection already used by the Streaming
+// tab, so the ledger shows it directly instead of it only being computed on the fly.
+// Never overwrites a sub-conta the user has already set (blank or otherwise).
+function backfillStreamingSubAccounts(){
+  let changed = false;
+  STATE.tx.forEach(t=>{
+    if(t.cat==='Streaming' && !t.sub){
+      const provider = detectStreamingProvider(t.desc);
+      if(provider && provider!=='Outro'){
+        t.sub = provider;
+        markTxDirty(t.id);
+        changed = true;
+      }
+    }
+  });
+  return changed;
+}
+
 // Combined into one call (and one storage write) since both write to the same key.
 async function runFinancingSync(){ await runExtraSync(); }
 async function runLoanSync(){ /* no-op: covered by runExtraSync */ }
@@ -3219,8 +3259,9 @@ async function runExtraSync(){
   const a = syncFinancingFromLedger();
   const b = syncLoansFromLedger();
   const c = syncCardPaymentsFromLedger();
+  const d = backfillStreamingSubAccounts();
   if(a || b) persistExtraData(); // fire-and-forget: never block the UI on slow/failing storage retries
-  if(c) persistTx(); // card-payment mirrors live in STATE.tx itself, so they persist via the tx chunks
+  if(c || d) persistTx(); // both write into STATE.tx itself, so they persist via the tx chunks
 }
 
 /* ============ Event wiring ============ */
@@ -3244,9 +3285,10 @@ function wireEvents(){
     let cat = document.getElementById('f_cat').value.trim();
     const val = parseFloat(document.getElementById('f_val').value);
     const desc = document.getElementById('f_desc').value.trim();
+    const sub = document.getElementById('f_sub').value.trim();
     if(!cat || isNaN(val) || val<=0){ showToast('Preencha categoria e valor.'); return; }
     if(!STATE.cats.includes(cat)){ STATE.cats.push(cat); }
-    const newTx = { id: nextId++, date, acc, dc, cat, val, desc };
+    const newTx = { id: nextId++, date, acc, dc, cat, val, desc, sub };
     STATE.tx.push(newTx);
     markTxDirty(newTx.id);
     await persistTx();
@@ -3359,6 +3401,7 @@ function wireEvents(){
     t.cat = cat;
     t.val = parseFloat(document.getElementById('e_val').value);
     t.desc = document.getElementById('e_desc').value.trim();
+    t.sub = document.getElementById('e_sub').value.trim();
     markTxDirty(id);
     await persistTx();
     await runExtraSync();
@@ -3575,6 +3618,7 @@ function openEditModal(id){
   document.getElementById('e_cat').value = t.cat;
   document.getElementById('e_val').value = t.val;
   document.getElementById('e_desc').value = t.desc;
+  document.getElementById('e_sub').value = t.sub||'';
   document.getElementById('editModalBackdrop').classList.add('show');
 }
 function closeEditModal(){
@@ -3588,6 +3632,7 @@ async function startApp(){
   await runExtraSync();
   renderAccSelects();
   renderCatDatalist();
+  renderSubDatalist();
   renderImportAccSelect();
   document.getElementById('f_date').value = todayISO();
   wireEvents();
