@@ -116,7 +116,7 @@ input,select,textarea{font-family:inherit;}
 .total-balance .value.pos{color:var(--text);}
 
 /* ---------- Account cards ---------- */
-.accounts-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px;}
+.accounts-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:22px;}
 @media (max-width:900px){.accounts-row{grid-template-columns:repeat(2,1fr);}}
 .acc-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;position:relative;overflow:hidden;}
 .acc-card::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%;background:var(--acc-color,var(--gold));}
@@ -1070,6 +1070,20 @@ function decodeCompact(rows, accounts, cats){
 }
 
 /* ============ Seed / load data ============ */
+// Adds any account names that should exist but aren't in STATE.accounts yet (e.g. new
+// accounts requested after the app was already in use) — appended once, idempotently, and
+// persisted so they stick around on future loads. Never removes or reorders existing ones,
+// since account index is what every transaction's "acc" field points to.
+const REQUIRED_ACCOUNTS = ['Conta Corrente Itaú', 'Visa Itaú', 'Mastercard Itaú', 'Caixa', 'Conta Corrente Natália', 'Cartão Visa Natália'];
+function ensureAccountsExist(){
+  let changed = false;
+  REQUIRED_ACCOUNTS.forEach(name=>{
+    if(!STATE.accounts.includes(name)){ STATE.accounts.push(name); changed = true; }
+  });
+  if(changed) persistTxMeta();
+  return changed;
+}
+
 async function loadData(){
   const meta = await storageGetJSON('txmeta_v1');
   if(meta && meta.seeded){
@@ -3701,6 +3715,7 @@ function closeEditModal(){
 /* ============ Boot ============ */
 async function startApp(){
   await loadData();
+  ensureAccountsExist();
   await loadExtraData();
   await runExtraSync();
   renderAccSelects();
