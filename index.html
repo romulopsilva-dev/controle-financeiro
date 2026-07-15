@@ -2110,6 +2110,10 @@ function processImportFile(){
   const staged = [];
   let skipped = 0;
   const ccIdx = STATE.accounts.indexOf('Conta Corrente Itaú');
+  // Any "Conta Corrente ..." account (Itaú's, Natália's, or a future one) is a checking
+  // account and needs the same Débito/Crédito convention below — only card-style accounts
+  // (Visa/Mastercard/Cartão ...) use the generic sign-based rule instead.
+  const isCheckingAccount = (STATE.accounts[accIdx]||'').startsWith('Conta Corrente');
   // Itaú's international-purchase block has no date on the actual merchant line — the
   // real date sits on a separate "dólar de conversão" row just above it, e.g.:
   //   27/05/2026 | dólar de conversão | 5.36   <- FX rate, not a transaction
@@ -2154,7 +2158,7 @@ function processImportFile(){
       let v = parseFlexibleValue(row[valorCol]);
       if(v==null || v===0) return;
       if(invert) v = -v;
-      if(accIdx===ccIdx){
+      if(isCheckingAccount){
         // Conta Corrente rule: only Salário/Rendimentos count as Crédito (always positive).
         // Everything else is Débito — a real debit (already negative in the statement)
         // stays a normal positive Débito, but a credit that isn't income becomes a
