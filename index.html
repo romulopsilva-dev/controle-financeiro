@@ -1074,9 +1074,16 @@ function decodeCompact(rows, accounts, cats){
 // accounts requested after the app was already in use) — appended once, idempotently, and
 // persisted so they stick around on future loads. Never removes or reorders existing ones,
 // since account index is what every transaction's "acc" field points to.
-const REQUIRED_ACCOUNTS = ['Conta Corrente Itaú', 'Visa Itaú', 'Mastercard Itaú', 'Caixa', 'Conta Corrente Natália', 'Cartão Visa Natália'];
+const REQUIRED_ACCOUNTS = ['Conta Corrente Itaú', 'Visa Itaú', 'Mastercard Itaú', 'Caixa', 'Conta Corrente Natália', 'Visa Natália'];
+// One-time rename (in place, same index, so every existing transaction pointing at it is
+// unaffected) to match the "Visa Itaú"/"Mastercard Itaú" naming convention.
+const ACCOUNT_RENAMES = { 'Cartão Visa Natália': 'Visa Natália' };
 function ensureAccountsExist(){
   let changed = false;
+  Object.entries(ACCOUNT_RENAMES).forEach(([oldName, newName])=>{
+    const idx = STATE.accounts.indexOf(oldName);
+    if(idx>=0){ STATE.accounts[idx] = newName; changed = true; }
+  });
   REQUIRED_ACCOUNTS.forEach(name=>{
     if(!STATE.accounts.includes(name)){ STATE.accounts.push(name); changed = true; }
   });
@@ -3256,18 +3263,18 @@ function renderLoanReconciliation(){
 const HISTORICAL_SEED_MAX_ID = 37655;
 
 function syncCardPaymentsFromLedger(){
-  const ccIdx = STATE.accounts.indexOf('Conta Corrente Itaú');
-  if(ccIdx<0) return false;
   const cardMap = [
-    { triggerCat:'Visa', targetName:'Visa Itaú' },
-    { triggerCat:'Mastercard', targetName:'Mastercard Itaú' },
+    { sourceAccName:'Conta Corrente Itaú', triggerCat:'Visa', targetName:'Visa Itaú' },
+    { sourceAccName:'Conta Corrente Itaú', triggerCat:'Mastercard', targetName:'Mastercard Itaú' },
+    { sourceAccName:'Conta Corrente Natália', triggerCat:'Visa', targetName:'Visa Natália' },
   ];
   let changed = false;
-  cardMap.forEach(({triggerCat, targetName})=>{
+  cardMap.forEach(({sourceAccName, triggerCat, targetName})=>{
+    const sourceAcc = STATE.accounts.indexOf(sourceAccName);
     const targetAcc = STATE.accounts.indexOf(targetName);
-    if(targetAcc<0) return;
+    if(sourceAcc<0 || targetAcc<0) return;
 
-    const ccEntries = STATE.tx.filter(t=>t.acc===ccIdx && t.cat===triggerCat);
+    const ccEntries = STATE.tx.filter(t=>t.acc===sourceAcc && t.cat===triggerCat);
     const historicalCC = ccEntries.filter(t=>t.id<=HISTORICAL_SEED_MAX_ID);
 
     // Undo any mirror this sync mistakenly created for a gap in the *original* historical
@@ -3300,7 +3307,7 @@ function syncCardPaymentsFromLedger(){
     // Only ever create a brand-new mirror for a payment added *after* the original import
     // (id > seed max) — a gap inside the historical range reflects how the spreadsheet
     // actually was and must stay untouched.
-    const newCC = STATE.tx.filter(t=>t.acc===ccIdx && t.cat===triggerCat && t.id>HISTORICAL_SEED_MAX_ID);
+    const newCC = STATE.tx.filter(t=>t.acc===sourceAcc && t.cat===triggerCat && t.id>HISTORICAL_SEED_MAX_ID);
     newCC.forEach(p=>{
       const alreadyLinked = STATE.tx.some(t=> t.acc===targetAcc && t.cat==='Pagamento' && t.date===p.date && Math.abs(Math.abs(t.val)-Math.abs(p.val))<0.02);
       if(alreadyLinked) return;
