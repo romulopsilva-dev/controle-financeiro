@@ -2194,8 +2194,11 @@ function processImportFile(){
           dc = 'D'; val = v < 0 ? Math.abs(v) : -Math.abs(v);
         }
       } else {
-        dc = v < 0 ? 'D' : 'C';
-        val = Math.abs(v);
+        // Card statement files use negative = charge, positive = refund/estorno/credit
+        // (confirmed against the invoice's own total) — so val is the sign-flipped raw
+        // value: still "Débito" always, with the sign itself carrying charge vs credit.
+        dc = 'D';
+        val = -v;
       }
     } else {
       const dv = parseFlexibleValue(row[debCol]);
