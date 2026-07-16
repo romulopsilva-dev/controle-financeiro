@@ -1078,6 +1078,9 @@ const REQUIRED_ACCOUNTS = ['Conta Corrente Itaú', 'Visa Itaú', 'Mastercard Ita
 // One-time rename (in place, same index, so every existing transaction pointing at it is
 // unaffected) to match the "Visa Itaú"/"Mastercard Itaú" naming convention.
 const ACCOUNT_RENAMES = { 'Cartão Visa Natália': 'Visa Natália' };
+// A distinct category (not the shared "Visa" used for Romulo's own card) so Natália's
+// invoice payments never mix with his in any category-based filter or report.
+const REQUIRED_CATS = ['Visa Natália'];
 function ensureAccountsExist(){
   let changed = false;
   Object.entries(ACCOUNT_RENAMES).forEach(([oldName, newName])=>{
@@ -1086,6 +1089,9 @@ function ensureAccountsExist(){
   });
   REQUIRED_ACCOUNTS.forEach(name=>{
     if(!STATE.accounts.includes(name)){ STATE.accounts.push(name); changed = true; }
+  });
+  REQUIRED_CATS.forEach(name=>{
+    if(!STATE.cats.includes(name)){ STATE.cats.push(name); changed = true; }
   });
   if(changed) persistTxMeta();
   return changed;
@@ -3266,7 +3272,7 @@ function syncCardPaymentsFromLedger(){
   const cardMap = [
     { sourceAccName:'Conta Corrente Itaú', triggerCat:'Visa', targetName:'Visa Itaú' },
     { sourceAccName:'Conta Corrente Itaú', triggerCat:'Mastercard', targetName:'Mastercard Itaú' },
-    { sourceAccName:'Conta Corrente Natália', triggerCat:'Visa', targetName:'Visa Natália' },
+    { sourceAccName:'Conta Corrente Natália', triggerCat:'Visa Natália', targetName:'Visa Natália' },
   ];
   let changed = false;
   cardMap.forEach(({sourceAccName, triggerCat, targetName})=>{
