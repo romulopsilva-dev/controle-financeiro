@@ -654,6 +654,7 @@ footer button{margin-left:6px;}
           <div class="import-row" style="margin-top:14px;">
             <div class="field"><label>Coluna de Data</label><select id="imp_col_date"></select></div>
             <div class="field"><label>Coluna de Descrição</label><select id="imp_col_desc"></select></div>
+            <div class="field"><label>Coluna de Parcela (opcional)</label><select id="imp_col_parcela"><option value="-1">Nenhuma</option></select></div>
           </div>
           <div class="field" style="margin-top:4px;">
             <label>Como vem o valor?</label>
@@ -1641,6 +1642,13 @@ function renderColumnSelectors(){
       sel.appendChild(o);
     });
   });
+  const parcelaSel = document.getElementById('imp_col_parcela');
+  parcelaSel.innerHTML = '<option value="-1">Nenhuma</option>';
+  labels.forEach((label, idx)=>{
+    const o = document.createElement('option');
+    o.value = idx; o.textContent = label;
+    parcelaSel.appendChild(o);
+  });
   const lower = labels.map(l=>l.toLowerCase());
   const guess = (keywords)=> {
     for(let i=0;i<lower.length;i++) if(keywords.some(k=>lower[i].includes(k))) return i;
@@ -1651,11 +1659,13 @@ function renderColumnSelectors(){
   const valorGuess = guess(['valor']);
   const debGuess = guess(['débito','debito']);
   const credGuess = guess(['crédito','credito']);
+  const parcelaGuess = guess(['parcela']);
   if(dateGuess>=0) document.getElementById('imp_col_date').value = dateGuess;
   if(descGuess>=0) document.getElementById('imp_col_desc').value = descGuess;
   if(valorGuess>=0) document.getElementById('imp_col_valor').value = valorGuess;
   if(debGuess>=0) document.getElementById('imp_col_deb').value = debGuess;
   if(credGuess>=0) document.getElementById('imp_col_cred').value = credGuess;
+  document.getElementById('imp_col_parcela').value = parcelaGuess>=0 ? parcelaGuess : -1;
 }
 
 function excelSerialToISO(serial){
@@ -2102,6 +2112,7 @@ async function confirmPayslipImport(){
 function processImportFile(){
   const dateCol = parseInt(document.getElementById('imp_col_date').value,10);
   const descCol = parseInt(document.getElementById('imp_col_desc').value,10);
+  const parcelaCol = parseInt(document.getElementById('imp_col_parcela').value,10);
   const mode = document.querySelector('input[name="imp_mode"]:checked').value;
   const valorCol = parseInt(document.getElementById('imp_col_valor').value,10);
   const invert = document.getElementById('imp_invert_sign').checked;
@@ -2141,8 +2152,16 @@ function processImportFile(){
     const descRaw = row[descCol];
     let iso = parseFlexibleDate(dateRaw);
 
-    const desc = (descRaw==null?'':String(descRaw)).trim();
-    if(!desc){ skipped++; return; }
+    const descBase = (descRaw==null?'':String(descRaw)).trim();
+    if(!descBase){ skipped++; return; }
+    let desc = descBase;
+    if(parcelaCol>=0){
+      const parcelaRaw = row[parcelaCol];
+      const parcelaText = (parcelaRaw==null?'':String(parcelaRaw)).trim();
+      // Some rows in the same file are section subtotals/headers that legitimately have no
+      // parcela value — only append when this particular row actually has one.
+      if(parcelaText) desc = `${descBase} - ${parcelaText}`;
+    }
     const descNorm = desc.toLowerCase();
 
     if(descNorm.includes('dólar de conversão') || descNorm.includes('dolar de conversao')){
