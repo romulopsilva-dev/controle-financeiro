@@ -346,8 +346,8 @@ footer button{margin-left:6px;}
 #pivotTable tr.total-row td{font-weight:700;color:var(--text);background:var(--surface-2);}
 
 /* Consulta Detalhada */
-.det-row-head{grid-template-columns:92px 130px 110px 110px 1fr 120px 40px;}
-.det-row{display:grid;grid-template-columns:92px 130px 110px 110px 1fr 120px 40px;gap:8px;padding:10px 16px;font-size:13px;border-bottom:1px solid var(--border);align-items:center;}
+.det-row-head{grid-template-columns:28px 92px 130px 110px 110px 1fr 120px 40px;}
+.det-row{display:grid;grid-template-columns:28px 92px 130px 110px 110px 1fr 120px 40px;gap:8px;padding:10px 16px;font-size:13px;border-bottom:1px solid var(--border);align-items:center;}
 .det-row:last-child{border-bottom:none;}
 .det-row:hover{background:var(--surface-2);}
 .det-row .date{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text-muted);}
@@ -917,14 +917,15 @@ footer button{margin-left:6px;}
         </div>
 
         <div class="ledger-toolbar">
-          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
             <button class="btn-secondary" id="detExportCsv">Exportar CSV</button>
+            <button class="btn-danger" id="detDeleteSelectedBtn" style="display:none;">Excluir selecionados (<span id="detSelCount">0</span>)</button>
           </div>
           <div class="ledger-count" id="detCount">—</div>
         </div>
         <div class="ledger" id="detTableWrap">
           <div class="ledger-head det-row-head" id="detHead">
-            <div class="sortable-th" data-sort="date">Data</div><div class="sortable-th" data-sort="acc">Conta</div><div class="sortable-th" data-sort="cat">Categoria</div><div class="sortable-th" data-sort="sub">Sub-conta</div><div class="sortable-th" data-sort="desc">Descrição</div><div class="sortable-th" data-sort="val" style="text-align:right;justify-content:flex-end;">Valor</div><div></div>
+            <div><input type="checkbox" id="detSelectAll" title="Marcar todos"></div><div class="sortable-th" data-sort="date">Data</div><div class="sortable-th" data-sort="acc">Conta</div><div class="sortable-th" data-sort="cat">Categoria</div><div class="sortable-th" data-sort="sub">Sub-conta</div><div class="sortable-th" data-sort="desc">Descrição</div><div class="sortable-th" data-sort="val" style="text-align:right;justify-content:flex-end;">Valor</div><div></div>
           </div>
           <div id="detBody"></div>
         </div>
@@ -3127,6 +3128,25 @@ function renderDetSortHeader(){
   });
 }
 
+function renderDetSelectionUI(){
+  const count = detSelected.size;
+  const btn = document.getElementById('detDeleteSelectedBtn');
+  document.getElementById('detSelCount').textContent = count;
+  btn.style.display = count>0 ? 'inline-block' : 'none';
+  const visibleChecks = [...document.querySelectorAll('.det-check')];
+  const selectAll = document.getElementById('detSelectAll');
+  if(visibleChecks.length){
+    const allChecked = visibleChecks.every(cb=>cb.checked);
+    selectAll.checked = allChecked;
+    selectAll.indeterminate = !allChecked && visibleChecks.some(cb=>cb.checked);
+  } else {
+    selectAll.checked = false;
+    selectAll.indeterminate = false;
+  }
+}
+
+let detSelected = new Set();
+
 function renderDetTable(reset){
   if(reset) detVisibleLimit = 200;
   const filtered = applyDetFilters();
@@ -3134,15 +3154,20 @@ function renderDetTable(reset){
   renderDetSortHeader();
   const total = filtered.reduce((s,t)=> s + (t.dc==='D'? -t.val : t.val), 0);
   document.getElementById('detCount').textContent = `${filtered.length.toLocaleString('pt-BR')} lançamentos · soma líquida: ${fmtBRL(total)}`;
+  // Drop selections that scrolled out of the current filtered set entirely, so the count
+  // shown never includes rows the user can no longer see.
+  const filteredIds = new Set(filtered.map(t=>t.id));
+  detSelected.forEach(id=>{ if(!filteredIds.has(id)) detSelected.delete(id); });
   const body = document.getElementById('detBody');
   body.innerHTML = '';
-  if(!sorted.length){ body.innerHTML = '<div class="empty-state">Nenhum lançamento encontrado para esses filtros.</div>'; document.getElementById('detLoadMoreBtn').style.display='none'; return; }
+  if(!sorted.length){ body.innerHTML = '<div class="empty-state">Nenhum lançamento encontrado para esses filtros.</div>'; document.getElementById('detLoadMoreBtn').style.display='none'; renderDetSelectionUI(); return; }
   const slice = sorted.slice(0, detVisibleLimit);
   const frag = document.createDocumentFragment();
   slice.forEach(t=>{
     const row = document.createElement('div');
     row.className = 'det-row';
     row.innerHTML = `
+      <div><input type="checkbox" class="det-check" data-id="${t.id}" ${detSelected.has(t.id)?'checked':''}></div>
       <div class="date">${fmtDateBR(t.date)}</div>
       <div class="acc-tag">${STATE.accounts[t.acc]}</div>
       <div class="cat">${t.cat||'—'}</div>
@@ -3155,6 +3180,14 @@ function renderDetTable(reset){
   });
   body.appendChild(frag);
   document.getElementById('detLoadMoreBtn').style.display = sorted.length>detVisibleLimit?'inline-block':'none';
+  body.querySelectorAll('.det-check').forEach(cb=>{
+    cb.addEventListener('change', e=>{
+      const id = parseInt(e.target.dataset.id,10);
+      if(e.target.checked) detSelected.add(id); else detSelected.delete(id);
+      renderDetSelectionUI();
+    });
+  });
+  renderDetSelectionUI();
   body.querySelectorAll('.editBtn').forEach(btn=>{
     btn.addEventListener('click', ()=> openEditModal(parseInt(btn.dataset.id,10)));
   });
@@ -3721,6 +3754,28 @@ function wireEvents(){
     a.click();
     URL.revokeObjectURL(url);
   });
+  document.getElementById('detSelectAll').addEventListener('change', e=>{
+    const filtered = applyDetFilters();
+    if(e.target.checked){ filtered.forEach(t=> detSelected.add(t.id)); }
+    else { detSelected.clear(); }
+    renderDetTable(false);
+  });
+  document.getElementById('detDeleteSelectedBtn').addEventListener('click', async ()=>{
+    const count = detSelected.size;
+    if(!count) return;
+    if(!confirm(`Tem certeza que deseja excluir ${count} lançamento(s) selecionado(s)? Essa ação não pode ser desfeita.`)) return;
+    detSelected.forEach(id=> markTxDirty(id));
+    STATE.tx = STATE.tx.filter(t=> !detSelected.has(t.id));
+    detSelected.clear();
+    await persistTx();
+    await runExtraSync();
+    showToast('Lançamento(s) excluído(s).');
+    renderDetTable(false);
+    refreshUI();
+    refreshFinancing();
+    refreshLoans();
+  });
+
 
   document.getElementById('resetDataBtn').addEventListener('click', async ()=>{
     if(!confirm('Isso vai apagar os dados salvos no Firebase e reimportar o histórico original. Lançamentos adicionados manualmente serão perdidos. Continuar?')) return;
