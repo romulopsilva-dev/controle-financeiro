@@ -479,6 +479,80 @@ footer button{margin-left:6px;}
   .import-preview-table{font-size:11px;}
   .modal{padding:18px;}
 }
+
+/* ---------- Conciliações (Reembolsos Amil / Prestação de Contas) e Comparativos ---------- */
+.main-grid > main{min-width:0;}
+.tabs{overflow-x:auto;scrollbar-width:thin;}
+.tab-btn{white-space:nowrap;}
+.rb-head,.rb-row{display:grid;gap:8px;align-items:center;}
+.rb-head{padding:10px 16px;font-size:11px;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-faint);border-bottom:1px solid var(--border);}
+.rb-row{padding:10px 16px;font-size:13px;border-bottom:1px solid var(--border);}
+.rb-row:hover{background:var(--surface-2);}
+.rb-row .date{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text-muted);}
+.rb-row .acc-tag{font-size:11.5px;color:var(--text-faint);}
+.rb-row .desc{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.rb-row .rb-prest{font-weight:600;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.rb-row .val{font-family:'IBM Plex Mono',monospace;text-align:right;font-weight:600;}
+.rb-row .val.D{color:var(--expense);} .rb-row .val.C{color:var(--income);}
+.amil-row{grid-template-columns:84px 100px 118px minmax(110px,1fr) 98px 100px 100px 96px 138px 62px;}
+.amil-cred,.prest-cred{grid-template-columns:84px 100px minmax(110px,1fr) 100px 112px 100px 96px 130px 62px;}
+.pc-desp-row{grid-template-columns:84px 100px minmax(110px,1fr) 100px 108px 100px 150px 62px;}
+.amil-cred[data-open],.prest-cred[data-open]{cursor:pointer;}
+.rb-badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap;}
+.rb-badge.st-ok{background:var(--income-soft);color:var(--income);}
+.rb-badge.st-part{background:var(--gold-soft);color:var(--gold);}
+.rb-badge.st-bad{background:var(--expense-soft);color:var(--expense);}
+.rb-badge.st-wait{background:rgba(125,163,255,0.14);color:#7DA3FF;}
+.rb-badge.st-off{background:var(--surface-3);color:var(--text-muted);}
+.rb-act{display:flex;justify-content:flex-end;}
+.rb-note{color:var(--text-faint);font-size:11.5px;margin-left:4px;}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;}
+.rb-kind{margin-left:6px;font-size:10.5px;color:var(--text-faint);}
+.rb-sub{padding:6px 16px 10px 128px;font-size:12px;color:var(--text-muted);border-bottom:1px solid var(--border);background:var(--surface-2);}
+.rb-sub div{padding:2px 0;} .rb-sub .mono{margin-right:6px;}
+.rb-details summary{cursor:pointer;font-weight:600;font-size:13px;color:var(--text-muted);}
+.rb-table td.num,.rb-table th{text-align:right;}
+.rb-table td.rowlabel{text-align:left;color:var(--text);font-weight:600;}
+.rb-table tr.total-row td{font-weight:700;color:var(--text);background:var(--surface-2);}
+.chk{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-muted);cursor:pointer;}
+.chk input{width:auto;}
+.rbm-exp{padding:10px 12px;background:var(--surface-3);border-radius:8px;font-size:13px;line-height:1.6;}
+.rbm-head,.rbm-row{display:grid;grid-template-columns:84px 1fr 100px 110px 110px;gap:8px;align-items:center;padding:6px 8px;font-size:12.5px;}
+.rbm-head{font-size:10.5px;text-transform:uppercase;color:var(--text-faint);letter-spacing:0.04em;border-bottom:1px solid var(--border);}
+.rbm-list{max-height:38vh;overflow-y:auto;border-bottom:1px solid var(--border);}
+.rbm-row.dim{opacity:0.45;}
+.rbm-row .rbm-d{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.rbm-row input{width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 7px;font-size:12.5px;}
+.mono.neg,.neg{color:var(--expense);}
+/* Comparativos */
+.cmp-block{margin-bottom:10px;}
+.cmp-block-head{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px;font-size:11px;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-muted);}
+.cmp-block-head input{background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:7px 10px;font-size:12.5px;text-transform:none;}
+.cmp-cats{max-height:170px;overflow-y:auto;padding:2px;}
+.chip.nonexp{border-style:dashed;}
+#pivotTable th.cb,#pivotTable td.cb{width:28px;text-align:center;padding:7px 4px;}
+#pivotTable th.cmp-th{cursor:pointer;text-align:right;}
+#pivotTable th.cmp-th:hover{color:var(--text);}
+#pivotTable td.rowlabel.toggle{cursor:pointer;}
+#pivotTable td.rowlabel.sub{padding-left:30px;font-weight:400;color:var(--text-muted);}
+#pivotTable tr.subrow td{background:var(--surface-2);}
+#pivotTable tr.subrow td.rowlabel{background:var(--surface-2);}
+#pivotTable td.drill{cursor:pointer;}
+#pivotTable td.drill:hover{background:var(--gold-soft);color:var(--text);}
+#pivotTable td.dim{color:var(--text-faint);}
+#pivotTable td.tot{color:var(--text);font-weight:700;}
+#pivotTable tr.sel td{background:var(--gold-soft);}
+#pivotTable tr.sel td.rowlabel{background:var(--gold-soft);}
+#pivotTable tr.sel-total td{color:var(--gold);}
+@media (max-width:900px){
+  .amil-row,.amil-cred,.prest-cred,.pc-desp-row{grid-template-columns:1fr 1fr;}
+  .rb-head{display:none;}
+  .rb-row .desc{white-space:normal;grid-column:1/-1;}
+  .rb-row .val{text-align:left;}
+  .rb-sub{padding-left:16px;}
+  .rbm-head,.rbm-row{grid-template-columns:70px 1fr 80px;}
+  .rbm-head span:nth-child(n+4),.rbm-row > :nth-child(n+4){grid-column:auto;}
+}
 </style>
 </head>
 <body>
@@ -530,7 +604,7 @@ footer button{margin-left:6px;}
         <input type="text" id="f_cat" list="catList" placeholder="ex: Alimentação" required>
         <datalist id="catList"></datalist>
       </div>
-      <div class="field"><label>Valor (R$)</label><input type="number" id="f_val" step="0.01" min="0" placeholder="0,00" required></div>
+      <div class="field"><label>Valor (R$)</label><input type="number" id="f_val" step="0.01" placeholder="0,00" title="Aceita valor negativo (ex.: reembolso ou estorno lançado como débito negativo)" required></div>
       <div class="field"><label>Descrição</label><input type="text" id="f_desc" placeholder="opcional"></div>
       <div class="field"><label>Sub-conta</label><input type="text" id="f_sub" list="subList" placeholder="opcional, ex: Netflix"></div>
       <datalist id="subList"></datalist>
@@ -576,6 +650,7 @@ footer button{margin-left:6px;}
         <button class="tab-btn" data-tab="importar">Importar</button>
         <button class="tab-btn" data-tab="emprestimos">Empréstimos</button>
         <button class="tab-btn" data-tab="prestacao">Prestação de Contas</button>
+        <button class="tab-btn" data-tab="reembamil">Reembolsos Amil</button>
         <button class="tab-btn" data-tab="streaming">Streaming</button>
         <button class="tab-btn" data-tab="comparativos">Comparativos</button>
         <button class="tab-btn" data-tab="consultas">Consultas</button>
@@ -789,25 +864,110 @@ footer button{margin-left:6px;}
 
       <div class="tab-panel" id="tab-prestacao">
         <div class="accounts-row" id="prestSummaryRow"></div>
-        <div class="ledger-toolbar">
+        <div class="accounts-row" id="prestReconRow"></div>
+        <div class="tabs" id="pcViewTabs" style="margin-bottom:12px;">
+          <button class="subtab-btn active" data-pcview="desp">Despesas × reembolso</button>
+          <button class="subtab-btn" data-pcview="reemb">Reembolsos recebidos</button>
+          <button class="subtab-btn" data-pcview="all">Todos os lançamentos</button>
+        </div>
+        <div class="ledger-toolbar" id="pcFilterBar">
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <select id="prest_filter_acc" style="min-width:170px;"><option value="all">Todas as contas</option></select>
-            <select id="prest_filter_status" style="min-width:150px;">
-              <option value="all">Todos</option>
-              <option value="pendente">Só pendentes</option>
-              <option value="reembolsado">Só reembolsos</option>
-            </select>
-            <input type="text" id="prest_search" placeholder="buscar…" style="min-width:180px;">
+            <select id="pc_acc" style="min-width:170px;"><option value="all">Todas as contas</option></select>
+            <select id="pc_status" style="min-width:170px;"></select>
+            <input type="text" id="pc_search" placeholder="buscar…" style="min-width:180px;">
+            <button class="btn-secondary" id="prestExportBtn">Exportar CSV</button>
           </div>
-          <div class="ledger-count" id="prestCount">—</div>
+          <div class="ledger-count" id="pcCount">—</div>
         </div>
-        <div class="ledger" id="prestTableWrap">
-          <div class="ledger-head prest-row-head">
-            <div>Data</div><div>Conta</div><div>Descrição</div><div style="text-align:right;">Valor</div>
+
+        <div id="pcViewDesp">
+          <div class="ledger">
+            <div class="ledger-head rb-head pc-desp-row">
+              <div>Data</div><div>Conta</div><div>Descrição</div><div style="text-align:right;">Valor pago</div><div>Reembolsada em</div><div style="text-align:right;">Reembolsado</div><div>Situação</div><div></div>
+            </div>
+            <div id="pcDespBody"></div>
           </div>
-          <div id="prestBody"></div>
+          <div class="import-hint" style="margin-top:10px;">Cada reembolso ("Sispag Hotelaria") é ligado às despesas cuja soma é igual ao valor recebido (valor único, bloco consecutivo ou combinação). Use 🔗 para corrigir um vínculo; o vínculo manual fica salvo.</div>
         </div>
-        <div class="load-more-wrap"><button class="btn-secondary" id="prestLoadMoreBtn" style="display:none;">Carregar mais</button></div>
+
+        <div id="pcViewReemb" style="display:none;">
+          <div class="ledger">
+            <div class="ledger-head rb-head prest-cred">
+              <div>Data</div><div>Conta</div><div>Descrição</div><div style="text-align:right;">Recebido</div><div style="text-align:right;">Despesas</div><div style="text-align:right;">Vinculado</div><div style="text-align:right;">Saldo</div><div>Situação</div><div></div>
+            </div>
+            <div id="pcReembBody"></div>
+          </div>
+          <div class="import-hint" style="margin-top:10px;">Clique na linha para ver as despesas vinculadas. ⏮ marca um reembolso como referente a relatório anterior ao período lançado.</div>
+        </div>
+
+        <div id="pcViewAll" style="display:none;">
+          <div class="ledger-toolbar">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <select id="prest_filter_acc" style="min-width:170px;"><option value="all">Todas as contas</option></select>
+              <select id="prest_filter_status" style="min-width:150px;">
+                <option value="all">Todos</option>
+                <option value="pendente">Só pendentes</option>
+                <option value="reembolsado">Só reembolsos</option>
+              </select>
+              <input type="text" id="prest_search" placeholder="buscar…" style="min-width:180px;">
+            </div>
+            <div class="ledger-count" id="prestCount">—</div>
+          </div>
+          <div class="ledger" id="prestTableWrap">
+            <div class="ledger-head prest-row-head">
+              <div>Data</div><div>Conta</div><div>Descrição</div><div style="text-align:right;">Valor</div>
+            </div>
+            <div id="prestBody"></div>
+          </div>
+          <div class="load-more-wrap"><button class="btn-secondary" id="prestLoadMoreBtn" style="display:none;">Carregar mais</button></div>
+        </div>
+      </div>
+
+      <div class="tab-panel" id="tab-reembamil">
+        <div class="accounts-row" id="amilSummaryRow"></div>
+        <div class="import-hint" style="margin-bottom:12px;">Despesas de <b>Assist. Médica</b> (exceto Medicamentos, Prevent Senior e Co-participação) conferidas com os créditos "Amil" lançados na conta. Consultas Cenpi / Jessica Boreli são reembolsadas no máximo em R$ 505,68.</div>
+        <div class="chip-row" id="amilChips" style="margin-bottom:10px;"></div>
+        <div class="ledger-toolbar">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;">A partir de</label>
+            <input type="date" id="amil_from" value="2026-01-01" style="min-width:140px;">
+            <select id="amil_prest" style="min-width:190px;"><option value="all">Todos os prestadores</option></select>
+            <input type="text" id="amil_search" placeholder="buscar…" style="min-width:170px;">
+            <button class="btn-secondary" id="amilExportBtn">Exportar CSV</button>
+          </div>
+          <div class="ledger-count" id="amilCount">—</div>
+        </div>
+        <div class="ledger">
+          <div class="ledger-head rb-head amil-row">
+            <div>Data</div><div>Conta</div><div>Prestador</div><div>Descrição</div><div style="text-align:right;">Valor pago</div><div>Reembolsado em</div><div style="text-align:right;">Reembolsado</div><div style="text-align:right;">Diferença</div><div>Situação</div><div></div>
+          </div>
+          <div id="amilBody"></div>
+        </div>
+
+        <h3 style="margin:26px 0 10px;font-size:14px;">Reembolsos Amil recebidos</h3>
+        <div class="ledger-toolbar">
+          <select id="amil_cred_filter" style="min-width:230px;">
+            <option value="saldo">Só com saldo sem despesa vinculada</option>
+            <option value="all">Todos os reembolsos</option>
+          </select>
+          <div class="import-hint" style="margin:0;">Clique para ver as despesas vinculadas · ⏮ = refere-se a despesa anterior ao período</div>
+        </div>
+        <div class="ledger">
+          <div class="ledger-head rb-head amil-cred">
+            <div>Data</div><div>Conta</div><div>Descrição</div><div style="text-align:right;">Recebido</div><div style="text-align:right;">Despesas</div><div style="text-align:right;">Vinculado</div><div style="text-align:right;">Saldo</div><div>Situação</div><div></div>
+          </div>
+          <div id="amilCredBody"></div>
+        </div>
+
+        <details class="rb-details" style="margin-top:22px;">
+          <summary>Resumo por prestador</summary>
+          <div class="import-preview-wrap" style="margin-top:8px;">
+            <table class="import-preview-table rb-table">
+              <thead><tr><th style="text-align:left;">Prestador</th><th>Despesas</th><th>Pago</th><th>Reembolsado</th><th>% reemb.</th><th>Sem reembolso</th></tr></thead>
+              <tbody id="amilPrestBody"></tbody>
+            </table>
+          </div>
+        </details>
       </div>
 
       <div class="tab-panel" id="tab-streaming">
@@ -840,28 +1000,57 @@ footer button{margin-left:6px;}
       </div>
 
       <div class="tab-panel" id="tab-comparativos">
-        <div class="import-hint" style="margin-bottom:12px;">Considera apenas os lançamentos da Conta Corrente Itaú.</div>
-        <div class="filters" style="position:static;margin-bottom:16px;">
-          <div class="import-row" style="align-items:flex-end;margin-bottom:0;">
-            <div class="field">
+        <div class="accounts-row" id="cmpSummary"></div>
+        <div class="filters cmp-filters" style="position:static;margin-bottom:14px;">
+          <div class="import-row" style="align-items:flex-end;margin-bottom:12px;">
+            <div class="field" style="max-width:230px;">
               <label>Tipo</label>
-              <select id="pivot_dc">
-                <option value="D">Débito</option>
-                <option value="C">Crédito</option>
-                <option value="all">Todos</option>
+              <select id="cmp_type">
+                <option value="D">Débitos (despesas)</option>
+                <option value="C">Créditos (receitas)</option>
+                <option value="N">Resultado (créditos − débitos)</option>
               </select>
             </div>
-            <div class="field">
-              <label>De</label>
-              <input type="date" id="pivot_from">
+            <div class="field" style="max-width:160px;"><label>De</label><input type="date" id="cmp_from"></div>
+            <div class="field" style="max-width:160px;"><label>Até</label><input type="date" id="cmp_to"></div>
+            <div class="field" style="max-width:150px;">
+              <label>Agrupar por</label>
+              <select id="cmp_group"><option value="month">Mês</option><option value="quarter">Trimestre</option><option value="year">Ano</option></select>
             </div>
-            <div class="field">
-              <label>Até</label>
-              <input type="date" id="pivot_to">
+            <div class="chip-row" id="cmpPresets" style="padding-bottom:4px;">
+              <button class="chip" data-pre="12m">12 meses</button><button class="chip" data-pre="ytd">Este ano</button><button class="chip" data-pre="lastyear">Ano passado</button><button class="chip" data-pre="all">Tudo</button>
             </div>
-            <button class="btn-primary" id="pivotRunBtn">Gerar tabela</button>
+          </div>
+          <div class="cmp-block">
+            <div class="cmp-block-head"><span>Contas</span>
+              <button class="btn-ghost" id="cmpAccAll">todas</button><button class="btn-ghost" id="cmpAccNone">nenhuma</button></div>
+            <div class="chip-row" id="cmpAccChips"></div>
+          </div>
+          <details class="cmp-block rb-details" open>
+            <summary>Categorias (contas de despesa) <span id="cmpCatCount" style="color:var(--text-faint);font-weight:400;margin-left:8px;"></span></summary>
+            <div class="cmp-block-head" style="margin-top:8px;">
+              <input type="text" id="cmp_catsearch" placeholder="filtrar categorias…" style="min-width:190px;">
+              <button class="btn-secondary" id="cmpCatExp" title="Seleciona tudo, menos Mastercard, Visa, Caixa e Visa Natália">Só contas de despesa</button>
+              <button class="btn-secondary" id="cmpCatVisible">Só as filtradas</button>
+              <button class="btn-ghost" id="cmpCatAll">todas</button><button class="btn-ghost" id="cmpCatNone">nenhuma</button>
+            </div>
+            <div class="chip-row cmp-cats" id="cmpCatChips"></div>
+            <div class="import-hint" style="margin-top:6px;">Mastercard, Visa, Caixa e Visa Natália (tracejadas) são pagamento de cartão / movimentação de caixa, não contas de despesa: vêm desmarcadas.</div>
+          </details>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center;">
+            <label class="chk"><input type="checkbox" id="cmp_hidezero" checked> ocultar contas zeradas</label>
+            <button class="btn-secondary" id="cmpExpandAll">Abrir todas as contas</button>
+            <button class="btn-secondary" id="cmpCollapseAll">Recolher</button>
+            <button class="btn-secondary" id="cmpClearSel">Limpar linhas marcadas</button>
+            <button class="btn-secondary" id="cmpExportBtn">Exportar CSV</button>
           </div>
         </div>
+        <div class="chart-card" style="margin-bottom:14px;">
+          <h3>Evolução</h3>
+          <div class="sub" id="cmpChartSub">Total das contas exibidas por período</div>
+          <div class="chart-wrap" style="height:190px;"><canvas id="cmpChart"></canvas></div>
+        </div>
+        <div class="import-hint" style="margin-bottom:8px;">Clique em ▸ para abrir uma conta em sub-contas · clique num valor para ver os lançamentos · marque linhas para somar · clique no cabeçalho para ordenar.</div>
         <div class="import-preview-wrap" style="max-height:70vh;">
           <table class="import-preview-table" id="pivotTable" style="width:100%;"></table>
         </div>
@@ -957,6 +1146,39 @@ footer button{margin-left:6px;}
       <button class="btn-secondary" id="cancelEditBtn">Cancelar</button>
       <button class="btn-primary" id="saveEditBtn">Salvar</button>
     </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="rbModalBackdrop">
+  <div class="modal" style="width:760px;max-height:92vh;overflow-y:auto;">
+    <h3 id="rbm_title">Vincular reembolso</h3>
+    <div id="rbm_info"></div>
+    <div class="field" id="rbm_none_wrap" style="margin-top:12px;"><label class="chk" style="text-transform:none;font-size:12.5px;"><input type="checkbox" id="rbm_none" style="width:auto;"> Não reembolsável / sem reembolso (impede o vínculo automático)</label></div>
+    <div class="field" id="rbm_partial_wrap"><label>Reembolso parcial esperado (R$) — o app passa a procurar um crédito com este valor</label><input type="number" step="0.01" min="0" id="rbm_partial" placeholder="opcional"></div>
+    <div class="field-row">
+      <div class="field"><label>Reembolso informado à mão — data</label><input type="date" id="rbm_mdate"></div>
+      <div class="field"><label>Valor reembolsado (R$)</label><input type="number" step="0.01" min="0" id="rbm_mval" placeholder="sem crédito lançado"></div>
+    </div>
+    <div class="field"><label>Observação</label><input type="text" id="rbm_note" placeholder="opcional"></div>
+    <div class="rbm-head"><span>Data</span><span>Reembolso</span><span>Valor</span><span>Disponível</span><span>Alocar (R$)</span></div>
+    <div id="rbm_list" class="rbm-list"></div>
+    <div id="rbm_sum" style="margin-top:10px;font-size:13px;"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="rbmResetBtn" title="Remove o vínculo manual e volta ao automático">Voltar ao automático</button>
+      <button class="btn-secondary" id="rbmCancelBtn">Cancelar</button>
+      <button class="btn-primary" id="rbmSaveBtn">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="drillBackdrop">
+  <div class="modal" style="width:780px;">
+    <h3 id="drill_title">Lançamentos</h3>
+    <div id="drill_sum" style="margin-bottom:10px;font-size:13px;"></div>
+    <div class="import-preview-wrap" style="max-height:55vh;">
+      <table class="import-preview-table rb-table" style="width:100%;"><thead><tr><th>Data</th><th style="text-align:left;">Conta</th><th style="text-align:left;">Descrição</th><th>Valor</th></tr></thead><tbody id="drill_body"></tbody></table>
+    </div>
+    <div class="modal-actions"><button class="btn-primary" id="drillCloseBtn">Fechar</button></div>
   </div>
 </div>
 
@@ -1152,6 +1374,7 @@ async function persistTxMeta(){
   });
 }
 async function persistAppData(){
+  scheduleReconRefresh();
   const ok1 = await persistTxMeta();
   if(dirtyChunks.size===0) return ok1;
   const catIdx = new Map(STATE.cats.map((c,i)=>[c,i]));
@@ -1482,6 +1705,7 @@ function refreshUI(){
   renderCharts();
   renderBudget();
   renderLedger(true);
+  scheduleReconRefresh();
 }
 
 /* ============ Import (Excel statement) ============ */
@@ -2843,6 +3067,7 @@ function refreshPrestacao(){
   renderPrestSummary();
   renderPrestFilterOptions();
   renderPrestTable(true);
+  prestRender();
 }
 
 /* ============ Streaming (sub-classificação por serviço) ============ */
@@ -2960,97 +3185,6 @@ function refreshStreaming(){
 }
 
 /* ============ Consultas (tabela dinâmica categoria x mês) ============ */
-function initPivotDefaults(){
-  const toEl = document.getElementById('pivot_to');
-  const fromEl = document.getElementById('pivot_from');
-  if(fromEl.value || toEl.value) return;
-  const now = new Date();
-  toEl.value = todayISO();
-  const from = new Date(now.getFullYear(), now.getMonth()-11, 1);
-  fromEl.value = from.toISOString().slice(0,10);
-}
-function runPivot(){
-  const ccIdx = STATE.accounts.indexOf('Conta Corrente Itaú');
-  const dcVal = document.getElementById('pivot_dc').value;
-  const fromVal = document.getElementById('pivot_from').value;
-  const toVal = document.getElementById('pivot_to').value;
-
-  const filtered = STATE.tx.filter(t=>{
-    if(t.acc!==ccIdx) return false; // Comparativos only considers Conta Corrente
-    if(dcVal!=='all' && t.dc!==dcVal) return false;
-    if(fromVal && t.date < fromVal) return false;
-    if(toVal && t.date > toVal) return false;
-    return true;
-  });
-
-  const monthsSet = new Set();
-  const catTotals = new Map();
-  filtered.forEach(t=>{
-    const month = t.date.slice(0,7);
-    monthsSet.add(month);
-    if(!catTotals.has(t.cat)) catTotals.set(t.cat, new Map());
-    const m = catTotals.get(t.cat);
-    m.set(month, (m.get(month)||0) + t.val);
-  });
-  const months = [...monthsSet].sort();
-  const cats = [...catTotals.keys()].sort((a,b)=>{
-    const ta = [...catTotals.get(a).values()].reduce((s,v)=>s+Math.abs(v),0);
-    const tb = [...catTotals.get(b).values()].reduce((s,v)=>s+Math.abs(v),0);
-    return tb - ta;
-  });
-
-  const table = document.getElementById('pivotTable');
-  if(!months.length || !cats.length){
-    table.innerHTML = '<tbody><tr><td style="padding:20px;color:var(--text-faint);">Nenhum lançamento encontrado para esse filtro.</td></tr></tbody>';
-    return;
-  }
-  const monthLabel = (mo)=>{ const [y,mm]=mo.split('-'); return ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][parseInt(mm,10)-1]+'/'+y.slice(2); };
-  let html = '<thead><tr><th>Categoria</th>';
-  months.forEach(m=> html += `<th>${monthLabel(m)}</th>`);
-  html += '<th>Total</th></tr></thead><tbody>';
-  const monthTotals = months.map(()=>0);
-  let grandTotal = 0;
-  // When showing both types together, also track separate Débito/Crédito totals per
-  // month so the combined "Total" line (which nets one against the other) doesn't hide
-  // how much was actually spent vs received.
-  const showSplitTotals = dcVal==='all';
-  const monthTotalsD = months.map(()=>0);
-  const monthTotalsC = months.map(()=>0);
-  let grandTotalD = 0, grandTotalC = 0;
-  if(showSplitTotals){
-    filtered.forEach(t=>{
-      const i = months.indexOf(t.date.slice(0,7));
-      if(i<0) return;
-      if(t.dc==='D'){ monthTotalsD[i]+=t.val; grandTotalD+=t.val; }
-      else { monthTotalsC[i]+=t.val; grandTotalC+=t.val; }
-    });
-  }
-  cats.forEach(cat=>{
-    const m = catTotals.get(cat);
-    let rowTotal = 0;
-    html += `<tr><td class="rowlabel">${cat}</td>`;
-    months.forEach((mo,i)=>{
-      const v = m.get(mo)||0;
-      rowTotal += v; monthTotals[i]+=v;
-      html += `<td class="num">${v? fmtBRL(v): '—'}</td>`;
-    });
-    grandTotal += rowTotal;
-    html += `<td class="num" style="color:var(--text);font-weight:700;">${fmtBRL(rowTotal)}</td></tr>`;
-  });
-  if(showSplitTotals){
-    html += `<tr class="total-row" style="background:var(--expense-soft);"><td class="rowlabel" style="color:var(--expense);">Total Débitos</td>`;
-    monthTotalsD.forEach(v=> html += `<td class="num" style="color:var(--expense);">${fmtBRL(v)}</td>`);
-    html += `<td class="num" style="color:var(--expense);">${fmtBRL(grandTotalD)}</td></tr>`;
-    html += `<tr class="total-row" style="background:var(--income-soft);"><td class="rowlabel" style="color:var(--income);">Total Créditos</td>`;
-    monthTotalsC.forEach(v=> html += `<td class="num" style="color:var(--income);">${fmtBRL(v)}</td>`);
-    html += `<td class="num" style="color:var(--income);">${fmtBRL(grandTotalC)}</td></tr>`;
-  }
-  html += `<tr class="total-row"><td class="rowlabel">Total ${showSplitTotals?'líquido':''}</td>`;
-  monthTotals.forEach(v=> html += `<td class="num">${fmtBRL(v)}</td>`);
-  html += `<td class="num">${fmtBRL(grandTotal)}</td></tr></tbody>`;
-  table.innerHTML = html;
-}
-
 /* ============ Consulta Detalhada (lançamento por lançamento, qualquer categoria) ============ */
 let detFilters = { acc:'all', dc:'all', cat:'all', sub:'all', from:'', to:'', min:null, max:null, search:'' };
 let detVisibleLimit = 200;
@@ -3418,6 +3552,8 @@ let __eventsWired = false;
 function wireEvents(){
   if(__eventsWired) return;
   __eventsWired = true;
+  wireReconEvents();
+  wireCmpEvents();
   document.querySelectorAll('.dc-btn').forEach(btn=>{
     btn.addEventListener('click', (e)=>{
       const group = btn.closest('.dc-toggle');
@@ -3435,7 +3571,7 @@ function wireEvents(){
     const val = parseFloat(document.getElementById('f_val').value);
     const desc = document.getElementById('f_desc').value.trim();
     const sub = document.getElementById('f_sub').value.trim();
-    if(!cat || isNaN(val) || val<=0){ showToast('Preencha categoria e valor.'); return; }
+    if(!cat || isNaN(val) || val===0){ showToast('Preencha categoria e valor (diferente de zero).'); return; }
     if(!STATE.cats.includes(cat)){ STATE.cats.push(cat); }
     const newTx = { id: nextId++, date, acc, dc, cat, val, desc, sub };
     STATE.tx.push(newTx);
@@ -3504,7 +3640,8 @@ function wireEvents(){
       document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
       if(btn.dataset.tab==='prestacao') refreshPrestacao();
       else if(btn.dataset.tab==='streaming') refreshStreaming();
-      else if(btn.dataset.tab==='comparativos'){ initPivotDefaults(); runPivot(); }
+      else if(btn.dataset.tab==='comparativos') cmpOpen();
+      else if(btn.dataset.tab==='reembamil') amilRefresh();
       else if(btn.dataset.tab==='consultas') refreshDetalhada();
     });
   });
@@ -3700,8 +3837,6 @@ function wireEvents(){
   document.getElementById('stream_filter_provider').addEventListener('change', e=>{ streamFilters.provider = e.target.value; renderStreamTable(true); });
   document.getElementById('streamLoadMoreBtn').addEventListener('click', ()=>{ streamVisibleLimit += 200; renderStreamTable(false); });
 
-  // Consultas (pivot) events
-  document.getElementById('pivotRunBtn').addEventListener('click', runPivot);
 
   // Consulta Detalhada events
   document.getElementById('det_acc').addEventListener('change', e=>{ detFilters.acc = e.target.value; renderDetTable(true); });
@@ -3806,11 +3941,902 @@ function closeEditModal(){
   document.getElementById('editModalBackdrop').classList.remove('show');
 }
 
+/* ============ Conciliações (Reembolsos Amil / Prestação de Contas) ============
+   Tudo é calculado em memória a partir de STATE.tx (nada novo é gravado nos lançamentos).
+   Só os vínculos manuais ficam no Firestore, no documento 'reimb_links_v1':
+     allocs:  [{s:'amil'|'prest', e:<id despesa>, c:<id reembolso>, v:<valor R$>}]
+     none:    ['amil:<id despesa>']   despesas marcadas como "sem reembolso" (não reembolsável)
+     prev:    ['amil:<id reembolso>'] reembolsos que se referem a despesa anterior ao período
+     partial: {'amil:<id despesa>': <valor R$ esperado de reembolso parcial>}                */
+const NF2 = new Intl.NumberFormat('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+function nf2(v){ return NF2.format(v); }
+function toC(v){ return Math.round(v*100); }
+function fmtC(c){ return fmtBRL(c/100); }
+function dBR(iso){ return iso ? fmtDateBR(iso) : ''; }
+function daysBetween(a,b){ return Math.round((Date.parse(b)-Date.parse(a))/86400000); }
+function escH(s){ return String(s==null?'':s).replace(/[&<>"]/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch])); }
+function addDaysISO(iso, n){ return new Date(Date.parse(iso)+n*86400000).toISOString().slice(0,10); }
+function titleCase(s){ return String(s||'').toLowerCase().replace(/(^|[\s\-\/])([a-zà-ú])/g,(m,a,b)=>a+b.toUpperCase()); }
+function downloadCSV(filename, header, rows){
+  const esc = v=>{ const s = String(v==null?'':v); return /[;"\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; };
+  const csv = '﻿' + [header, ...rows].map(r=>r.map(esc).join(';')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8'}));
+  a.download = filename; document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+
+let LINKS = { allocs:[], none:[], prev:[], partial:{}, manual:{}, notes:{} };
+async function loadLinks(){
+  try{
+    const d = await storageGetJSON('reimb_links_v1');
+    if(d) LINKS = { allocs:d.allocs||[], none:d.none||[], prev:d.prev||[], partial:d.partial||{}, manual:d.manual||{}, notes:d.notes||{} };
+  }catch(e){ console.error('loadLinks', e); }
+}
+async function persistLinks(){
+  const ok = await storageSetJSON('reimb_links_v1', LINKS);
+  if(!ok) showToast('Não foi possível salvar o vínculo (verifique a conexão).');
+  return ok;
+}
+function linkAdd(e, c, v, kind){ c.rem -= v; e.links.push({c, v, kind}); }
+
+/* Aplica os vínculos manuais (têm prioridade sobre qualquer regra automática). */
+function reconApplyManual(scope, exps, creds){
+  const byE = new Map(exps.map(e=>[e.id,e])), byC = new Map(creds.map(c=>[c.id,c]));
+  const none = new Set(LINKS.none), prev = new Set(LINKS.prev);
+  LINKS.allocs.filter(a=>a.s===scope).forEach(a=>{
+    const e = byE.get(a.e), c = byC.get(a.c);
+    if(!e || !c) return;
+    const v = Math.min(toC(a.v), c.rem);
+    if(v<=0) return;
+    linkAdd(e, c, v, 'manual'); e.manual = true;
+  });
+  exps.forEach(e=>{
+    if(none.has(scope+':'+e.id)){ e.manual = true; e.none = true; }
+    const p = LINKS.partial[scope+':'+e.id];
+    if(p!=null && !isNaN(p)) e.informed = toC(p);
+  });
+  creds.forEach(c=>{ if(prev.has(scope+':'+c.id)){ c.prev = true; c.rem = 0; } });
+  // reembolso informado à mão (data + valor), sem depender de um crédito lançado no app
+  exps.forEach(e=>{
+    const m = LINKS.manual[scope+':'+e.id];
+    if(m && m.v>0){
+      const v = toC(m.v);
+      e.manual = true; e.manualEntry = {date:m.date||'', v:m.v};
+      e.links.push({c:{id:'m'+e.id, date:m.date||e.date, desc:'Reembolso informado manualmente', acc:e.acc, c:v, rem:0, manualEntry:true}, v, kind:'manual'});
+    }
+    e.note = LINKS.notes[scope+':'+e.id] || '';
+  });
+}
+
+/* ---------------- Reembolsos Amil ---------------- */
+const AMIL_START = '2026-01-01';
+const AMIL_TETO_C = 50568;      // consulta Cenpi / Jessica Boreli: reembolso máximo R$ 505,68
+const AMIL_WAIT_DAYS = 45;      // despesa mais recente que isso e sem reembolso = "Aguardando"
+const AMIL_MAXLAG = 240;        // reembolso até 240 dias depois da despesa
+const RX_AMIL_EXCL = /drogaria|drogar|raia\s?\d|vidalink|buenosayres|farmac|drogasil|panvel|pague menos|medicament|prevent|rodrigo|co-?\s?particip/i;
+const RX_AMIL_CRED = /(^|[^a-zà-ú])amil/i;
+const RX_AMIL_TETO = /cenpi|jessica/i;
+// Reembolsos parciais informados pelo usuário (arquivo "Incosistencias Amil.docx"); podem ser
+// sobrescritos pelo botão de vínculo manual de cada despesa.
+const AMIL_INFORMED = [
+  {date:'2026-05-11', val:2310, rx:/andrea/i, reimb:990},
+  {date:'2026-07-13', val:2640, rx:/andrea/i, reimb:2310},
+  {date:'2026-06-05', val:3160, rx:/mmfono/i, reimb:2765},
+];
+function prestadorOf(t){
+  if(t.sub) return t.sub;
+  let d = (t.desc||'').trim()
+    .replace(/^(pix\s+(transf|qrs)|ted|doc|sispag|pagto|pgto)\s*/i,'')
+    .replace(/\s*\d{1,2}\/\d{2}(\/\d{2,4})?$/,'')
+    .trim();
+  return d ? titleCase(d) : '(sem descrição)';
+}
+
+function amilBuild(allTx, start){
+  start = start || AMIL_START;
+  const today = todayISO();
+  const exps=[], creds=[], revs=[];
+  allTx.forEach(t=>{
+    if(t.cat!=='Assist. Médica' || t.date<start) return;
+    const txt = (t.sub||'')+' '+(t.desc||'');
+    if(RX_AMIL_EXCL.test(txt)) return;
+    const s = toC(t.dc==='D' ? t.val : -t.val);
+    if(s===0) return;
+    const base = {t, id:t.id, date:t.date, acc:t.acc, desc:t.desc||'', sub:t.sub||''};
+    if(s>0) exps.push({...base, c:s, prest:prestadorOf(t), links:[], opts:[s]});
+    else if(RX_AMIL_CRED.test(txt)) creds.push({...base, c:-s, rem:-s});
+    else revs.push({...base, c:-s});
+  });
+  exps.forEach(e=>{
+    e.teto = RX_AMIL_TETO.test(e.prest+' '+e.desc) && e.c>AMIL_TETO_C;
+    const inf = AMIL_INFORMED.find(i=>i.date===e.date && toC(i.val)===e.c && i.rx.test(e.desc+' '+e.sub));
+    if(inf) e.informed = toC(inf.reimb);
+  });
+  reconApplyManual('amil', exps, creds);
+  exps.forEach(e=>{
+    if(e.teto) e.opts = [AMIL_TETO_C, e.c];
+    if(e.informed!=null && e.informed<e.c && !e.opts.includes(e.informed)) e.opts = [e.c, e.informed];
+  });
+  const free = e=> !(e.manual || e.rev || e.links.length);
+  const sortedE = [...exps].sort((a,b)=>a.date.localeCompare(b.date)||a.id-b.id);
+
+  // 0) estornos (Pix devolvido): crédito não-Amil de mesmo valor, até 120 dias depois
+  revs.sort((a,b)=>a.date.localeCompare(b.date)).forEach(r=>{
+    let best=null;
+    sortedE.forEach(e=>{
+      if(!free(e) || e.c!==r.c) return;
+      const lag = daysBetween(e.date, r.date);
+      if(lag<0 || lag>120) return;
+      if(!best || lag<best.lag) best = {e, lag};
+    });
+    if(best){ best.e.rev = r; r.used = true; }
+  });
+
+  // 1) teto (Cenpi / Jessica). O app lança créditos agregados: 1.011,36 = 2 × 505,68 etc.
+  //    a) crédito múltiplo do teto: k consultas de teto lançadas poucos dias antes
+  [...creds].sort((a,b)=>a.date.localeCompare(b.date)).forEach(c=>{
+    if(c.rem<=0 || c.rem%AMIL_TETO_C!==0) return;
+    const k = c.rem/AMIL_TETO_C;
+    if(k<2 || k>4) return;
+    const cand = sortedE.filter(e=>free(e) && e.teto)
+      .map(e=>({e, lag:daysBetween(e.date, c.date)})).filter(x=>x.lag>=0 && x.lag<=14)
+      .sort((a,b)=>a.lag-b.lag).slice(0,k);
+    if(cand.length===k) cand.forEach(x=>linkAdd(x.e, c, AMIL_TETO_C, 'teto'));
+  });
+  //    b) crédito de exatamente 505,68: guloso global pela menor distância
+  const pairs=[];
+  sortedE.forEach(e=>{
+    if(!free(e) || !e.teto) return;
+    creds.forEach(c=>{
+      if(c.rem!==AMIL_TETO_C) return;
+      const lag = daysBetween(e.date, c.date);
+      if(lag<-5 || lag>90) return;
+      pairs.push({e, c, k:(lag>=0?0:1)*1e6+Math.abs(lag)});
+    });
+  });
+  pairs.sort((a,b)=>a.k-b.k||a.e.date.localeCompare(b.e.date));
+  pairs.forEach(p=>{ if(free(p.e) && p.c.rem===AMIL_TETO_C) linkAdd(p.e, p.c, AMIL_TETO_C, 'teto'); });
+
+  // 2) valor exato (ou parcial informado): guloso global pelo menor intervalo despesa -> reembolso
+  const exactPhase = (minLag, maxLag)=>{
+    const ps=[];
+    sortedE.forEach(e=>{
+      if(!free(e)) return;
+      creds.forEach(c=>{
+        if(c.rem<=0 || !e.opts.includes(c.rem)) return;
+        const lag = daysBetween(e.date, c.date);
+        if(lag>=minLag && lag<=maxLag) ps.push({e, c, lag});
+      });
+    });
+    ps.sort((a,b)=>Math.abs(a.lag)-Math.abs(b.lag)||a.e.date.localeCompare(b.e.date)||a.c.date.localeCompare(b.c.date));
+    ps.forEach(p=>{
+      if(!free(p.e) || p.c.rem<=0 || !p.e.opts.includes(p.c.rem)) return;
+      linkAdd(p.e, p.c, p.c.rem, p.c.rem===p.e.c ? 'exato' : (p.e.teto && p.c.rem===AMIL_TETO_C ? 'teto' : 'informado'));
+    });
+  };
+  exactPhase(0, AMIL_MAXLAG);
+
+  // 3) um crédito = soma de 2 a 4 despesas (a Amil paga vários protocolos no mesmo dia)
+  const comboPhase = ()=>{
+    [...creds].filter(c=>c.rem>0).sort((a,b)=>a.date.localeCompare(b.date)).forEach(c=>{
+      const pool = sortedE.filter(e=>{ if(!free(e)) return false; const l = daysBetween(e.date, c.date); return l>=0 && l<=AMIL_MAXLAG; })
+        .sort((a,b)=>b.date.localeCompare(a.date)).slice(0,40);
+      const target = c.rem;
+      let best=null, nodes=0;
+      const chosen=[];
+      const dfs = (i, sum)=>{
+        if(++nodes>400000) return;
+        if(sum===target && chosen.length>=2){
+          const score = chosen.reduce((s,x)=>s+daysBetween(x.e.date, c.date),0);
+          if(!best || score<best.score || (score===best.score && chosen.length<best.items.length)) best = {score, items:chosen.map(x=>({...x}))};
+          return;
+        }
+        if(chosen.length>=4) return;
+        for(let j=i;j<pool.length;j++){
+          for(const o of pool[j].opts){
+            if(sum+o<=target){ chosen.push({e:pool[j], o}); dfs(j+1, sum+o); chosen.pop(); }
+          }
+        }
+      };
+      dfs(0, 0);
+      if(best) best.items.forEach(x=>linkAdd(x.e, c, x.o, x.o===x.e.c ? 'soma' : 'soma/parcial'));
+    });
+  };
+  comboPhase();
+
+  // 4) último recurso: valor exato com reembolso até 5 dias ANTES da data lançada da despesa
+  exactPhase(-5, -1);
+
+  // status
+  const waitCut = addDaysISO(today, -AMIL_WAIT_DAYS);
+  exps.forEach(e=>{
+    e.reimb = e.links.reduce((s,l)=>s+l.v,0);
+    e.lastDate = e.links.length ? e.links.map(l=>l.c.date).sort().pop() : '';
+    if(e.rev) e.status = 'estornada';
+    else if(e.none) e.status = 'semreemb';
+    else if(e.reimb>=e.c) e.status = 'integral';
+    else if(e.reimb>0) e.status = 'parcial';
+    else if(e.date>=waitCut) e.status = 'aguardando';
+    else e.status = 'semreemb';
+    // confiança do vínculo
+    const kinds = new Set(e.links.map(l=>l.kind));
+    if(!e.links.length) e.conf = '';
+    else if(kinds.has('manual')) e.conf = 'Manual';
+    else if(kinds.has('soma') || kinds.has('soma/parcial')) e.conf = 'Soma';
+    else if(kinds.has('teto')) e.conf = 'Teto';
+    else if(kinds.has('informado')) e.conf = 'Informado';
+    else {
+      const dupE = exps.filter(x=>x.c===e.c).length, dupC = creds.filter(x=>x.c===e.links[0].c.c).length;
+      e.conf = (dupE>1 || dupC>1) ? 'Média' : 'Alta';
+    }
+  });
+  creds.forEach(c=>{
+    c.alloc = 0; c.exps = [];
+    exps.forEach(e=>e.links.forEach(l=>{ if(l.c===c){ c.alloc += l.v; c.exps.push({e, v:l.v}); } }));
+    c.saldo = c.prev ? 0 : c.c - c.alloc;
+  });
+  const sum = (arr, f)=>arr.reduce((s,x)=>s+f(x),0);
+  const live = exps.filter(e=>e.status!=='estornada');
+  return { exps, creds, revs, start, waitCut,
+    tot:{ pago:sum(live,e=>e.c), reemb:sum(live,e=>e.reimb),
+      semreemb:sum(live.filter(e=>e.status==='semreemb'),e=>e.c - e.reimb),
+      parcialNao:sum(live.filter(e=>e.status==='parcial'),e=>e.c - e.reimb),
+      aguardando:sum(live.filter(e=>e.status==='aguardando'),e=>e.c),
+      estornada:sum(exps.filter(e=>e.status==='estornada'),e=>e.c),
+      credSaldo:sum(creds,c=>Math.max(c.saldo,0)), credSemDesp:creds.filter(c=>c.saldo>0).length } };
+}
+
+/* ---------------- Prestação de Contas ---------------- */
+const PREST_TOL_C = 5;   // tolerância de arredondamento: R$ 0,05
+function prestBuild(allTx){
+  const exps=[], creds=[];
+  allTx.forEach(t=>{
+    if(t.cat!=='Prest. Contas') return;
+    const s = toC(t.dc==='D' ? t.val : -t.val);
+    if(s===0) return;
+    const base = {t, id:t.id, date:t.date, acc:t.acc, desc:t.desc||'', sub:t.sub||''};
+    if(s>0) exps.push({...base, c:s, links:[]});
+    else creds.push({...base, c:-s, rem:-s});
+  });
+  reconApplyManual('prest', exps, creds);
+  const free = e=> !(e.manual || e.links.length);
+  const credsAsc = [...creds].filter(c=>c.rem>0).sort((a,b)=>a.date.localeCompare(b.date)||a.id-b.id);
+
+  // Cada reembolso (relatório de despesas) quita um conjunto de despesas anteriores à data dele.
+  // A) reembolso de uma única despesa (valor igual): guloso global pela menor distância
+  const ps=[];
+  exps.forEach(e=>{
+    if(!free(e)) return;
+    credsAsc.forEach(c=>{ if(c.rem===e.c){ const lag = daysBetween(e.date, c.date); if(lag>=0 && lag<=400) ps.push({e, c, lag}); } });
+  });
+  ps.sort((a,b)=>a.lag-b.lag||a.e.date.localeCompare(b.e.date));
+  ps.forEach(p=>{ if(free(p.e) && p.c.rem===p.e.c) linkAdd(p.e, p.c, p.e.c, 'exato'); });
+  const openPool = c=> exps.filter(e=>free(e) && e.date<=c.date).sort((a,b)=>a.date.localeCompare(b.date)||a.id-b.id);
+  // B) bloco de despesas consecutivas (ordem de data) cuja soma é o reembolso, com no máximo K lacunas
+  //    (despesas puladas no meio). Tenta primeiro soma exata e depois diferença de até R$ 0,05
+  //    (arredondamentos); começa por K=0 e só afrouxa depois; prefere o bloco mais recente.
+  //    Não se aceita mais de 3 lacunas: com muitas puladas qualquer soma "bate" por coincidência.
+  for(const tol of [0, PREST_TOL_C]){
+    for(let K=0; K<=3; K++){
+      credsAsc.forEach(c=>{
+        if(c.rem<=PREST_TOL_C) return;
+        const pool = openPool(c), target = c.rem, n = pool.length;
+        let best = null;
+        for(let st=0; st<n; st++){
+          if(pool[st].c>target+tol) continue;
+          let nodes = 0, found = null;
+          const chosen = [pool[st]];
+          const dfs = (j, sum, skips)=>{
+            if(found || ++nodes>20000) return;
+            if(Math.abs(sum-target)<=tol){ found = chosen.slice(); return; }
+            if(j>=n || sum>target+tol) return;
+            chosen.push(pool[j]); dfs(j+1, sum+pool[j].c, skips); chosen.pop();
+            if(skips<K) dfs(j+1, sum, skips+1);
+          };
+          dfs(st+1, pool[st].c, 0);
+          if(found){
+            const endIdx = pool.indexOf(found[found.length-1]);
+            if(!best || endIdx>best.end || (endIdx===best.end && st>best.st)) best = {items:found, end:endIdx, st};
+          }
+        }
+        if(best){
+          best.items.forEach(e=>linkAdd(e, c, e.c, (K===0 ? 'bloco' : 'bloco c/ lacunas') + (tol?' (±0,05)':'')));
+          c.rem = 0;
+        }
+      });
+    }
+  }
+
+  exps.forEach(e=>{
+    e.reimb = e.links.reduce((s,l)=>s+l.v,0);
+    e.lastDate = e.links.length ? e.links.map(l=>l.c.date).sort().pop() : '';
+    e.status = e.none ? 'pend' : (e.reimb>=e.c ? 'reemb' : (e.reimb>0 ? 'parcial' : 'pend'));
+    const kinds = new Set(e.links.map(l=>l.kind));
+    e.conf = !e.links.length ? '' : kinds.has('manual') ? 'Manual' : kinds.has('exato') ? 'Alta' : 'Média';
+  });
+  creds.forEach(c=>{
+    c.exps = []; c.alloc = 0;
+    exps.forEach(e=>e.links.forEach(l=>{ if(l.c===c){ c.alloc += l.v; c.exps.push({e, v:l.v}); } }));
+    c.saldo = c.prev ? 0 : c.c - c.alloc;
+    c.status = c.prev ? 'anterior' : (c.alloc===0 ? 'semdesp' : (Math.abs(c.saldo)<=PREST_TOL_C ? 'conc' : 'dif'));
+  });
+  const sum = (arr, f)=>arr.reduce((s,x)=>s+f(x),0);
+  return { exps, creds,
+    tot:{ gasto:sum(exps,e=>e.c), reemb:sum(creds,c=>c.c), pend:sum(exps,e=>e.c-e.reimb),
+      expConc:exps.filter(e=>e.status==='reemb').length, credConc:creds.filter(c=>c.status==='conc').length,
+      credSaldo:sum(creds.filter(c=>c.status==='semdesp'||c.status==='dif'),c=>Math.max(c.saldo,0)) } };
+}
+
+/* ---------------- Vínculo manual (modal compartilhado) ---------------- */
+let linkCtx = null;
+function openLinkModal(scope, id){
+  const V = scope==='amil' ? amilCur : prestCur;
+  const e = V && V.exps.find(x=>x.id===id);
+  if(!e) return;
+  const others = new Map();
+  V.exps.forEach(x=>{ if(x.id!==id) x.links.forEach(l=>others.set(l.c.id,(others.get(l.c.id)||0)+l.v)); });
+  const mine = new Map(e.links.map(l=>[l.c.id,l.v]));
+  const lo = scope==='amil' ? -5 : -3;
+  const list = V.creds.filter(c=>!c.prev && (daysBetween(e.date,c.date)>=lo || mine.has(c.id)))
+    .sort((a,b)=>a.date.localeCompare(b.date)).slice(0,120)
+    .map(c=>({c, free:c.c-(others.get(c.id)||0), mine:mine.get(c.id)||0}));
+  linkCtx = {scope, id, list};
+  document.getElementById('rbm_title').textContent = scope==='amil' ? 'Vincular reembolso Amil' : 'Vincular reembolso de prestação de contas';
+  document.getElementById('rbm_info').innerHTML =
+    `<div class="rbm-exp"><b>${dBR(e.date)}</b> · ${escH(STATE.accounts[e.acc])} · ${escH(e.desc)}${scope==='amil'?` · <i>${escH(e.prest)}</i>`:''}<br>Valor pago: <b class="mono">${fmtC(e.c)}</b></div>`;
+  const man = LINKS.manual[scope+':'+id];
+  document.getElementById('rbm_mdate').value = man ? (man.date||'') : '';
+  document.getElementById('rbm_mval').value = man ? man.v : '';
+  document.getElementById('rbm_note').value = LINKS.notes[scope+':'+id] || '';
+  document.getElementById('rbm_none').checked = !!e.none;
+  document.getElementById('rbm_none_wrap').style.display = scope==='amil' ? 'block' : 'none';
+  document.getElementById('rbm_partial_wrap').style.display = scope==='amil' ? 'block' : 'none';
+  document.getElementById('rbm_partial').value = LINKS.partial[scope+':'+id]!=null ? LINKS.partial[scope+':'+id] : (e.informed!=null ? e.informed/100 : '');
+  const body = document.getElementById('rbm_list');
+  body.innerHTML = list.length ? list.map((x,i)=>`
+    <div class="rbm-row ${x.free<=0&&!x.mine?'dim':''}">
+      <span class="mono">${dBR(x.c.date)}</span>
+      <span class="rbm-d">${escH(x.c.desc)} <small>(${escH(STATE.accounts[x.c.acc])})</small></span>
+      <span class="mono">${fmtC(x.c.c)}</span>
+      <span class="mono ${x.free<0?'neg':''}">livre ${fmtC(Math.max(x.free,0))}</span>
+      <input type="number" step="0.01" min="0" data-i="${i}" value="${x.mine?x.mine/100:''}" placeholder="0,00">
+    </div>`).join('') : '<div class="empty-state">Nenhum reembolso disponível a partir desta data.</div>';
+  rbmUpdateSum();
+  document.getElementById('rbModalBackdrop').classList.add('show');
+}
+function rbmUpdateSum(){
+  if(!linkCtx) return;
+  const V = linkCtx.scope==='amil' ? amilCur : prestCur;
+  const e = V.exps.find(x=>x.id===linkCtx.id);
+  let s=0;
+  document.querySelectorAll('#rbm_list input').forEach(i=>{ s += toC(parseFloat(i.value)||0); });
+  const dif = e.c - s;
+  document.getElementById('rbm_sum').innerHTML = `Alocado: <b class="mono">${fmtC(s)}</b> de ${fmtC(e.c)} · ${dif>0?`não coberto <b class="mono">${fmtC(dif)}</b>`:(dif<0?`excede em <b class="mono neg">${fmtC(-dif)}</b>`:'<b style="color:var(--income)">integral</b>')}`;
+}
+function closeLinkModal(){ document.getElementById('rbModalBackdrop').classList.remove('show'); linkCtx = null; }
+function linksDropFor(scope, id){
+  LINKS.allocs = LINKS.allocs.filter(a=>!(a.s===scope && a.e===id));
+  LINKS.none = LINKS.none.filter(k=>k!==scope+':'+id);
+  delete LINKS.partial[scope+':'+id];
+  delete LINKS.manual[scope+':'+id];
+  delete LINKS.notes[scope+':'+id];
+}
+async function saveLinkModal(reset){
+  if(!linkCtx) return;
+  const {scope, id, list} = linkCtx;
+  linksDropFor(scope, id);
+  if(!reset){
+    document.querySelectorAll('#rbm_list input').forEach(inp=>{
+      const v = parseFloat(inp.value);
+      if(v>0) LINKS.allocs.push({s:scope, e:id, c:list[+inp.dataset.i].c.id, v:Math.round(v*100)/100});
+    });
+    const mv = parseFloat(document.getElementById('rbm_mval').value);
+    const md = document.getElementById('rbm_mdate').value || todayISO();
+    if(mv>0) LINKS.manual[scope+':'+id] = {date:md, v:Math.round(mv*100)/100};
+    const note = document.getElementById('rbm_note').value.trim();
+    if(note) LINKS.notes[scope+':'+id] = note;
+    const hasAlloc = LINKS.allocs.some(a=>a.s===scope && a.e===id) || mv>0;
+    if(scope==='amil'){
+      if(document.getElementById('rbm_none').checked && !hasAlloc) LINKS.none.push(scope+':'+id);
+      const p = parseFloat(document.getElementById('rbm_partial').value);
+      if(p>0 && !hasAlloc) LINKS.partial[scope+':'+id] = Math.round(p*100)/100;
+    }
+    // Prestação de contas: salvar sem alocar nada = "esta despesa não foi reembolsada" (impede o vínculo automático)
+    if(scope==='prest' && !hasAlloc) LINKS.none.push(scope+':'+id);
+  }
+  closeLinkModal();
+  await persistLinks();
+  showToast(reset ? 'Vínculo automático restaurado.' : 'Vínculo salvo.');
+  refreshReconTabs();
+}
+async function toggleCredPrev(scope, id){
+  const key = scope+':'+id;
+  LINKS.prev = LINKS.prev.includes(key) ? LINKS.prev.filter(k=>k!==key) : [...LINKS.prev, key];
+  await persistLinks();
+  refreshReconTabs();
+}
+function refreshReconTabs(){
+  const act = document.querySelector('.tab-btn.active');
+  const tab = act && act.dataset.tab;
+  if(tab==='reembamil') amilRefresh();
+  else if(tab==='prestacao') prestRender();
+  else if(tab==='comparativos' && cmp.ready) cmpRender();
+}
+
+/* ---------------- UI: Reembolsos Amil ---------------- */
+const RB_STATUS = {
+  integral:{l:'Integral', cls:'st-ok'}, parcial:{l:'Parcial', cls:'st-part'}, semreemb:{l:'Sem reembolso', cls:'st-bad'},
+  aguardando:{l:'Aguardando', cls:'st-wait'}, estornada:{l:'Estornada', cls:'st-off'},
+  reemb:{l:'Reembolsada', cls:'st-ok'}, pend:{l:'Pendente', cls:'st-bad'},
+  conc:{l:'Conciliado', cls:'st-ok'}, dif:{l:'Com diferença', cls:'st-part'}, semdesp:{l:'Sem despesas', cls:'st-bad'}, anterior:{l:'Período anterior', cls:'st-off'}
+};
+function rbBadge(st){ const s = RB_STATUS[st]||{l:st,cls:''}; return `<span class="rb-badge ${s.cls}">${s.l}</span>`; }
+let amilCur = null, prestCur = null;
+let amilF = { status:'all', prest:'all', search:'', from:AMIL_START, credOnlySaldo:true };
+const amilOpen = new Set();
+
+function amilRefresh(){
+  amilCur = amilBuild(STATE.tx, amilF.from || AMIL_START);
+  renderAmilSummary(); renderAmilChips(); renderAmilPrestFilter(); renderAmilTable(); renderAmilCredits(); renderAmilPrestadores();
+}
+function renderAmilSummary(){
+  const T = amilCur.tot, ex = amilCur.exps;
+  const n = st=>ex.filter(e=>e.status===st).length;
+  document.getElementById('amilSummaryRow').innerHTML = `
+    <div class="acc-card"><div class="name">Pago (assist. médica)</div><div class="bal mono">${fmtC(T.pago)}</div><div class="meta">${ex.length-n('estornada')} despesas desde ${dBR(amilCur.start)}</div></div>
+    <div class="acc-card" style="--acc-color:var(--income)"><div class="name">Reembolsado pela Amil</div><div class="bal mono">${fmtC(T.reemb)}</div><div class="meta">${nf2(T.pago?T.reemb/T.pago*100:0)}% do pago · ${n('integral')} integrais, ${n('parcial')} parciais</div></div>
+    <div class="acc-card" style="--acc-color:var(--expense)"><div class="name">Sem reembolso</div><div class="bal mono neg">${fmtC(T.semreemb)}</div><div class="meta">${n('semreemb')} despesas · +${fmtC(T.parcialNao)} não coberto nos parciais</div></div>
+    <div class="acc-card" style="--acc-color:#7DA3FF"><div class="name">Aguardando (&lt; ${AMIL_WAIT_DAYS} dias)</div><div class="bal mono">${fmtC(T.aguardando)}</div><div class="meta">${n('aguardando')} despesas recentes</div></div>
+    <div class="acc-card" style="--acc-color:#C792EA"><div class="name">Reembolsos sem despesa</div><div class="bal mono">${fmtC(T.credSaldo)}</div><div class="meta">${T.credSemDesp} créditos Amil com saldo não vinculado</div></div>`;
+}
+function renderAmilChips(){
+  const ex = amilCur.exps;
+  const defs = [['all','Todos'],['integral','Integral'],['parcial','Parcial'],['semreemb','Sem reembolso'],['aguardando','Aguardando'],['estornada','Estornada']];
+  const wrap = document.getElementById('amilChips');
+  wrap.innerHTML = defs.map(([k,l])=>{
+    const n = k==='all' ? ex.length : ex.filter(e=>e.status===k).length;
+    return `<button class="chip ${amilF.status===k?'active':''}" data-st="${k}">${l} (${n})</button>`;
+  }).join('');
+}
+function renderAmilPrestFilter(){
+  const sel = document.getElementById('amil_prest');
+  const keys = [...new Set(amilCur.exps.map(e=>e.prest))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  sel.innerHTML = '<option value="all">Todos os prestadores</option>' + keys.map(k=>`<option value="${escH(k)}">${escH(k)}</option>`).join('');
+  sel.value = keys.includes(amilF.prest) ? amilF.prest : 'all';
+  amilF.prest = sel.value;
+}
+function amilFiltered(){
+  const q = amilF.search.trim().toLowerCase();
+  return amilCur.exps.filter(e=>{
+    if(amilF.status!=='all' && e.status!==amilF.status) return false;
+    if(amilF.prest!=='all' && e.prest!==amilF.prest) return false;
+    if(q && !(e.desc+' '+e.prest).toLowerCase().includes(q)) return false;
+    return true;
+  }).sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id);
+}
+function renderAmilTable(){
+  const rows = amilFiltered();
+  const tot = rows.reduce((s,e)=>({c:s.c+e.c, r:s.r+e.reimb}), {c:0,r:0});
+  document.getElementById('amilCount').textContent = `${rows.length} despesas · pago ${fmtC(tot.c)} · reembolsado ${fmtC(tot.r)}`;
+  const body = document.getElementById('amilBody');
+  if(!rows.length){ body.innerHTML = '<div class="empty-state">Nenhuma despesa encontrada.</div>'; return; }
+  body.innerHTML = rows.map(e=>{
+    const dif = e.status==='estornada' ? 0 : e.c - e.reimb;
+    const more = e.links.length>1 ? ` <small>(+${e.links.length-1})</small>` : '';
+    return `<div class="rb-row amil-row">
+      <div class="date">${dBR(e.date)}</div>
+      <div class="acc-tag">${escH(STATE.accounts[e.acc])}</div>
+      <div class="rb-prest">${escH(e.prest)}</div>
+      <div class="desc" title="${escH(e.desc+(e.note?' — '+e.note:''))}">${escH(e.desc)}${e.note?` <span class="rb-note">📝 ${escH(e.note)}</span>`:''}</div>
+      <div class="val">${fmtC(e.c)}</div>
+      <div class="date">${e.lastDate?dBR(e.lastDate)+more:'—'}</div>
+      <div class="val ${e.reimb?'C':''}">${e.reimb?fmtC(e.reimb):'—'}</div>
+      <div class="val ${dif>0&&e.status!=='aguardando'?'D':''}">${dif?fmtC(dif):'—'}</div>
+      <div>${rbBadge(e.status)}${e.conf?`<span class="rb-kind">${e.conf}</span>`:''}</div>
+      <div class="rb-act"><button class="icon-btn" data-link="${e.id}" title="Vincular / editar reembolso">🔗</button><button class="icon-btn" data-edit="${e.id}" title="Editar o lançamento">✏️</button></div>
+    </div>`;
+  }).join('');
+}
+function renderCredRows(V, scope, opts){
+  const list = V.creds.filter(c=>!opts.onlySaldo || c.saldo>0 || c.prev).sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id);
+  return list.map(c=>{
+    const st = scope==='amil' ? (c.prev ? 'anterior' : (c.alloc===0 ? 'semdesp' : (c.saldo>0 ? 'dif' : 'conc'))) : c.status;
+    const key = scope+':'+c.id;
+    const open = opts.open.has(key);
+    const det = open ? `<div class="rb-sub">${c.exps.length ? c.exps.sort((a,b)=>a.e.date.localeCompare(b.e.date)).map(x=>`<div><span class="mono">${dBR(x.e.date)}</span> ${escH(x.e.desc)} <span class="mono">${fmtC(x.e.c)}</span>${x.v!==x.e.c?` <small>(reembolsado ${fmtC(x.v)})</small>`:''}</div>`).join('') : '<i>Nenhuma despesa vinculada.</i>'}</div>` : '';
+    return `<div class="rb-row ${scope}-cred" data-open="${key}">
+      <div class="date">${dBR(c.date)}</div>
+      <div class="acc-tag">${escH(STATE.accounts[c.acc])}</div>
+      <div class="desc" title="${escH(c.desc)}">${escH(c.desc)}</div>
+      <div class="val C">${fmtC(c.c)}</div>
+      <div class="val">${c.exps.length ? c.exps.length+(c.exps.length>1?' despesas':' despesa') : '—'} <small>${open?'▾':'▸'}</small></div>
+      <div class="val">${c.alloc?fmtC(c.alloc):'—'}</div>
+      <div class="val ${c.saldo>0?'D':''}">${c.saldo?fmtC(c.saldo):'—'}</div>
+      <div>${rbBadge(st)}</div>
+      <div class="rb-act"><button class="icon-btn" data-prev="${key}" title="${c.prev?'Voltar a considerar no período':'Marcar como referente a período anterior'}">${c.prev?'↩':'⏮'}</button><button class="icon-btn" data-edit="${c.id}" title="Editar o lançamento">✏️</button></div>
+    </div>${det}`;
+  }).join('') || '<div class="empty-state">Nenhum reembolso para exibir.</div>';
+}
+function renderAmilCredits(){
+  document.getElementById('amilCredBody').innerHTML = renderCredRows(amilCur, 'amil', {onlySaldo:amilF.credOnlySaldo, open:amilOpen});
+}
+function renderAmilPrestadores(){
+  const m = new Map();
+  amilCur.exps.filter(e=>e.status!=='estornada').forEach(e=>{
+    if(!m.has(e.prest)) m.set(e.prest, {n:0, pago:0, reemb:0, sem:0});
+    const x = m.get(e.prest); x.n++; x.pago+=e.c; x.reemb+=e.reimb;
+    if(e.status==='semreemb') x.sem += e.c-e.reimb;
+  });
+  const rows = [...m.entries()].sort((a,b)=>b[1].pago-a[1].pago);
+  const t = rows.reduce((s,[,x])=>({n:s.n+x.n,pago:s.pago+x.pago,reemb:s.reemb+x.reemb,sem:s.sem+x.sem}),{n:0,pago:0,reemb:0,sem:0});
+  document.getElementById('amilPrestBody').innerHTML = rows.map(([k,x])=>`<tr><td class="rowlabel">${escH(k)}</td><td class="num">${x.n}</td><td class="num">${nf2(x.pago/100)}</td><td class="num">${nf2(x.reemb/100)}</td><td class="num">${nf2(x.pago?x.reemb/x.pago*100:0)}%</td><td class="num">${nf2(x.sem/100)}</td></tr>`).join('')
+    + `<tr class="total-row"><td class="rowlabel">Total</td><td class="num">${t.n}</td><td class="num">${nf2(t.pago/100)}</td><td class="num">${nf2(t.reemb/100)}</td><td class="num">${nf2(t.pago?t.reemb/t.pago*100:0)}%</td><td class="num">${nf2(t.sem/100)}</td></tr>`;
+}
+function exportAmilCSV(){
+  const rows = amilFiltered().map(e=>[dBR(e.date), STATE.accounts[e.acc], e.prest, e.desc, nf2(e.c/100), e.lastDate?dBR(e.lastDate):'', nf2(e.reimb/100), nf2((e.status==='estornada'?0:e.c-e.reimb)/100), RB_STATUS[e.status].l, e.conf, e.note]);
+  downloadCSV('Reembolsos_Amil.csv', ['Data','Conta','Prestador','Descricao','Valor pago','Data reembolso','Valor reembolsado','Nao reembolsado','Status','Vinculo','Observacao'], rows);
+}
+
+/* ---------------- UI: Prestação de Contas (conciliação) ---------------- */
+let pcF = { view:'desp', acc:'all', status:'all', search:'' };
+const pcOpen = new Set();
+function prestRender(){
+  prestCur = prestBuild(STATE.tx);
+  const T = prestCur.tot, ex = prestCur.exps, cr = prestCur.creds;
+  document.getElementById('prestReconRow').innerHTML = `
+    <div class="acc-card" style="--acc-color:var(--income)"><div class="name">Despesas reembolsadas</div><div class="bal mono">${T.expConc} / ${ex.length}</div><div class="meta">${ex.filter(e=>e.status==='parcial').length} parciais · ${ex.filter(e=>e.status==='pend').length} pendentes</div></div>
+    <div class="acc-card" style="--acc-color:#7DA3FF"><div class="name">Reembolsos conciliados</div><div class="bal mono">${T.credConc} / ${cr.length}</div><div class="meta">soma das despesas vinculadas = valor recebido</div></div>
+    <div class="acc-card" style="--acc-color:#C792EA"><div class="name">Reembolso sem despesas</div><div class="bal mono">${fmtC(T.credSaldo)}</div><div class="meta">${cr.filter(c=>c.status==='semdesp'||c.status==='dif').length} reembolsos com saldo (ex.: relatórios anteriores)</div></div>`;
+  const accs = [...new Set(ex.map(e=>e.acc).concat(cr.map(c=>c.acc)))].sort();
+  const sel = document.getElementById('pc_acc');
+  sel.innerHTML = '<option value="all">Todas as contas</option>' + accs.map(i=>`<option value="${i}">${escH(STATE.accounts[i])}</option>`).join('');
+  sel.value = accs.map(String).includes(pcF.acc) ? pcF.acc : 'all'; pcF.acc = sel.value;
+  document.querySelectorAll('#pcViewTabs .subtab-btn').forEach(b=>b.classList.toggle('active', b.dataset.pcview===pcF.view));
+  document.getElementById('pcViewDesp').style.display = pcF.view==='desp' ? 'block' : 'none';
+  document.getElementById('pcViewReemb').style.display = pcF.view==='reemb' ? 'block' : 'none';
+  document.getElementById('pcViewAll').style.display = pcF.view==='all' ? 'block' : 'none';
+  document.getElementById('pcFilterBar').style.display = pcF.view==='all' ? 'none' : 'flex';
+  if(pcF.view==='desp') renderPcDesp();
+  else if(pcF.view==='reemb') renderPcReemb();
+}
+function pcFilteredExps(){
+  const q = pcF.search.trim().toLowerCase();
+  return prestCur.exps.filter(e=>{
+    if(pcF.acc!=='all' && String(e.acc)!==pcF.acc) return false;
+    if(pcF.status!=='all' && e.status!==pcF.status) return false;
+    if(q && !e.desc.toLowerCase().includes(q)) return false;
+    return true;
+  }).sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id);
+}
+function renderPcDesp(){
+  const rows = pcFilteredExps();
+  const tot = rows.reduce((s,e)=>({c:s.c+e.c, r:s.r+e.reimb}), {c:0,r:0});
+  document.getElementById('pcCount').textContent = `${rows.length} despesas · ${fmtC(tot.c)} · com reembolso vinculado ${fmtC(tot.r)} · sem vínculo ${fmtC(tot.c-tot.r)}`;
+  document.getElementById('pcDespBody').innerHTML = rows.map(e=>`<div class="rb-row pc-desp-row">
+      <div class="date">${dBR(e.date)}</div>
+      <div class="acc-tag">${escH(STATE.accounts[e.acc])}</div>
+      <div class="desc" title="${escH(e.desc+(e.note?' — '+e.note:''))}">${escH(e.desc)||'—'}${e.note?` <span class="rb-note">📝 ${escH(e.note)}</span>`:''}</div>
+      <div class="val">${fmtC(e.c)}</div>
+      <div class="date">${e.lastDate?dBR(e.lastDate)+(e.links.length>1?` <small>(+${e.links.length-1})</small>`:''):'—'}</div>
+      <div class="val ${e.reimb?'C':''}">${e.reimb?fmtC(e.reimb):'—'}</div>
+      <div>${rbBadge(e.status)}${e.conf?`<span class="rb-kind">${e.conf}</span>`:''}</div>
+      <div class="rb-act"><button class="icon-btn" data-link="${e.id}" title="Vincular / editar reembolso">🔗</button><button class="icon-btn" data-edit="${e.id}" title="Editar o lançamento">✏️</button></div>
+    </div>`).join('') || '<div class="empty-state">Nenhuma despesa encontrada.</div>';
+}
+function renderPcReemb(){
+  const q = pcF.search.trim().toLowerCase();
+  const V = {creds: prestCur.creds.filter(c=>{
+    if(pcF.acc!=='all' && String(c.acc)!==pcF.acc) return false;
+    if(pcF.status==='conc' && c.status!=='conc') return false;
+    if(pcF.status==='saldo' && !(c.status==='semdesp'||c.status==='dif')) return false;
+    if(q && !c.desc.toLowerCase().includes(q)) return false;
+    return true;
+  })};
+  document.getElementById('pcCount').textContent = `${V.creds.length} reembolsos · ${fmtC(V.creds.reduce((s,c)=>s+c.c,0))}`;
+  document.getElementById('pcReembBody').innerHTML = renderCredRows(V, 'prest', {onlySaldo:false, open:pcOpen});
+}
+function exportPrestCSV(){
+  const rows = prestCur.exps.sort((a,b)=>a.date.localeCompare(b.date)).map(e=>[dBR(e.date), STATE.accounts[e.acc], e.desc, nf2(e.c/100), e.lastDate?dBR(e.lastDate):'', nf2(e.reimb/100), RB_STATUS[e.status].l, e.links.map(l=>dBR(l.c.date)+' '+nf2(l.v/100)).join(' | '), e.note]);
+  downloadCSV('Prestacao_Contas_Conciliacao.csv', ['Data','Conta','Descricao','Valor','Data reembolso','Valor reembolsado','Status','Reembolsos vinculados','Observacao'], rows);
+}
+
+/* ---------------- Eventos das conciliações ---------------- */
+function wireReconEvents(){
+  const $ = id=>document.getElementById(id);
+  // Amil
+  $('amilChips').addEventListener('click', e=>{ const b=e.target.closest('button[data-st]'); if(!b) return; amilF.status=b.dataset.st; renderAmilChips(); renderAmilTable(); });
+  $('amil_prest').addEventListener('change', e=>{ amilF.prest=e.target.value; renderAmilTable(); });
+  let tmr; $('amil_search').addEventListener('input', e=>{ amilF.search=e.target.value; clearTimeout(tmr); tmr=setTimeout(renderAmilTable,150); });
+  $('amil_from').addEventListener('change', e=>{ amilF.from=e.target.value||AMIL_START; amilRefresh(); });
+  $('amil_cred_filter').addEventListener('change', e=>{ amilF.credOnlySaldo = e.target.value==='saldo'; renderAmilCredits(); });
+  $('amilExportBtn').addEventListener('click', exportAmilCSV);
+  $('amilBody').addEventListener('click', e=>{
+    const b=e.target.closest('button[data-link]'); if(b) openLinkModal('amil', parseInt(b.dataset.link,10));
+    const ed=e.target.closest('button[data-edit]'); if(ed) openEditModal(parseInt(ed.dataset.edit,10));
+  });
+  const credClick = (open, scope, rerender)=> e=>{
+    const ed = e.target.closest('button[data-edit]');
+    if(ed){ openEditModal(parseInt(ed.dataset.edit,10)); return; }
+    const pb = e.target.closest('button[data-prev]');
+    if(pb){ toggleCredPrev(scope, parseInt(pb.dataset.prev.split(':')[1],10)); return; }
+    const row = e.target.closest('.rb-row[data-open]'); if(!row) return;
+    const k = row.dataset.open; open.has(k) ? open.delete(k) : open.add(k); rerender();
+  };
+  $('amilCredBody').addEventListener('click', credClick(amilOpen,'amil',renderAmilCredits));
+  // Prestação de Contas
+  $('pcViewTabs').addEventListener('click', e=>{ const b=e.target.closest('button[data-pcview]'); if(!b) return; pcF.view=b.dataset.pcview; pcF.status='all'; $('pc_status').value='all'; fillPcStatus(); prestRender(); if(pcF.view==='all') renderPrestTable(true); });
+  $('pc_acc').addEventListener('change', e=>{ pcF.acc=e.target.value; pcF.view==='desp'?renderPcDesp():renderPcReemb(); });
+  $('pc_status').addEventListener('change', e=>{ pcF.status=e.target.value; pcF.view==='desp'?renderPcDesp():renderPcReemb(); });
+  let tmr2; $('pc_search').addEventListener('input', e=>{ pcF.search=e.target.value; clearTimeout(tmr2); tmr2=setTimeout(()=>pcF.view==='desp'?renderPcDesp():renderPcReemb(),150); });
+  $('prestExportBtn').addEventListener('click', exportPrestCSV);
+  $('pcDespBody').addEventListener('click', e=>{
+    const b=e.target.closest('button[data-link]'); if(b) openLinkModal('prest', parseInt(b.dataset.link,10));
+    const ed=e.target.closest('button[data-edit]'); if(ed) openEditModal(parseInt(ed.dataset.edit,10));
+  });
+  $('pcReembBody').addEventListener('click', credClick(pcOpen,'prest',renderPcReemb));
+  // modal de vínculo
+  $('rbm_list').addEventListener('input', rbmUpdateSum);
+  $('rbmCancelBtn').addEventListener('click', closeLinkModal);
+  $('rbmSaveBtn').addEventListener('click', ()=>saveLinkModal(false));
+  $('rbmResetBtn').addEventListener('click', ()=>saveLinkModal(true));
+  $('rbModalBackdrop').addEventListener('click', e=>{ if(e.target.id==='rbModalBackdrop') closeLinkModal(); });
+  fillPcStatus();
+}
+function fillPcStatus(){
+  const sel = document.getElementById('pc_status');
+  const defs = pcF.view==='reemb'
+    ? [['all','Todos os reembolsos'],['conc','Só conciliados'],['saldo','Só com saldo sem despesa']]
+    : [['all','Todas as situações'],['reemb','Reembolsadas'],['parcial','Parciais'],['pend','Pendentes']];
+  sel.innerHTML = defs.map(([k,l])=>`<option value="${k}">${l}</option>`).join('');
+  sel.value = pcF.status;
+}
+
+/* ---------------- Atualização automática ---------------- */
+// Qualquer gravação de lançamentos (novo, edição, exclusão, importação, recategorização) e o retorno à
+// janela recalculam a aba de conciliação / comparativo que estiver aberta; as demais recalculam ao abrir.
+let reconTimer = null;
+function scheduleReconRefresh(){
+  clearTimeout(reconTimer);
+  reconTimer = setTimeout(()=>{ try{ refreshReconTabs(); }catch(e){ console.error('refreshReconTabs', e); } }, 150);
+}
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) scheduleReconRefresh(); });
+
+/* ============ Comparativos interativos ============
+   Linhas = contas de despesa (categorias); colunas = períodos (mês / trimestre / ano).
+   Mastercard, Visa, Caixa (e Visa Natália) são pagamentos de cartão / movimentação de caixa,
+   não contas de despesa, então ficam desmarcadas por padrão (podem ser marcadas de novo).   */
+const CMP_NONEXP = ['mastercard','visa','caixa','visa natália'];
+const CMP_MONTHS = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+let cmp = { ready:false, type:'D', from:'', to:'', group:'month', accs:new Set(), cats:new Set(), catSearch:'',
+  hideZero:true, expanded:new Set(), selected:new Set(), sortKey:'total', sortDir:-1 };
+let cmpChart = null, cmpView = null;
+const cmpKnown = { cats:new Set(), accs:new Set() };
+// categorias / contas criadas depois entram automaticamente (exceto as que não são contas de despesa)
+function cmpSyncNew(){
+  let ch = false;
+  STATE.cats.forEach(c=>{ if(!cmpKnown.cats.has(c)){ cmpKnown.cats.add(c); if(!cmpIsNonExp(c)) cmp.cats.add(c); ch = true; } });
+  STATE.accounts.forEach((_,i)=>{ if(!cmpKnown.accs.has(i)){ cmpKnown.accs.add(i); cmp.accs.add(i); ch = true; } });
+  return ch;
+}
+
+function cmpIsNonExp(cat){ return CMP_NONEXP.includes(String(cat||'').trim().toLowerCase()); }
+function cmpInit(){
+  if(cmp.ready) return;
+  cmp.ready = true;
+  const now = new Date();
+  cmp.to = todayISO();
+  cmp.from = new Date(Date.UTC(now.getFullYear(), now.getMonth()-11, 1)).toISOString().slice(0,10);
+  cmp.accs = new Set(STATE.accounts.map((_,i)=>i));
+  cmp.cats = new Set(STATE.cats.filter(c=>!cmpIsNonExp(c)));
+  STATE.cats.forEach(c=>cmpKnown.cats.add(c)); STATE.accounts.forEach((_,i)=>cmpKnown.accs.add(i));
+}
+function cmpOpen(){ cmpInit(); cmpSyncNew(); cmpSyncControls(); cmpRender(); }
+function cmpPeriodKey(date){
+  if(cmp.group==='year') return date.slice(0,4);
+  if(cmp.group==='quarter') return date.slice(0,4)+'-T'+(Math.floor((parseInt(date.slice(5,7),10)-1)/3)+1);
+  return date.slice(0,7);
+}
+function cmpPeriodLabel(k){
+  if(cmp.group==='year') return k;
+  if(cmp.group==='quarter'){ const [y,q]=k.split('-'); return q+'/'+y.slice(2); }
+  const [y,m]=k.split('-'); return CMP_MONTHS[parseInt(m,10)-1]+'/'+y.slice(2);
+}
+function cmpValue(t){
+  if(cmp.type==='D') return t.dc==='D' ? t.val : null;
+  if(cmp.type==='C') return t.dc==='C' ? t.val : null;
+  return t.dc==='C' ? t.val : -t.val;
+}
+function cmpRows(){
+  return STATE.tx.filter(t=>cmp.accs.has(t.acc) && cmp.cats.has(t.cat) && (!cmp.from||t.date>=cmp.from) && (!cmp.to||t.date<=cmp.to) && cmpValue(t)!==null);
+}
+function cmpCompute(){
+  const rows = cmpRows();
+  const periodsSet = new Set();
+  const cats = new Map();
+  rows.forEach(t=>{
+    const p = cmpPeriodKey(t.date); periodsSet.add(p);
+    const v = cmpValue(t);
+    if(!cats.has(t.cat)) cats.set(t.cat, {name:t.cat, total:0, per:new Map(), subs:new Map()});
+    const c = cats.get(t.cat);
+    c.total += v; c.per.set(p,(c.per.get(p)||0)+v);
+    const sk = t.sub || '(sem sub-conta)';
+    if(!c.subs.has(sk)) c.subs.set(sk, {name:sk, total:0, per:new Map()});
+    const s = c.subs.get(sk); s.total += v; s.per.set(p,(s.per.get(p)||0)+v);
+  });
+  // períodos contínuos (inclui os vazios) para o gráfico e a média ficarem corretos
+  let periods = [...periodsSet].sort();
+  if(periods.length>1 && cmp.group==='month'){
+    const out=[]; let [y,m]=periods[0].split('-').map(Number); const [ey,em]=periods[periods.length-1].split('-').map(Number);
+    while(y<ey || (y===ey && m<=em)){ out.push(y+'-'+String(m).padStart(2,'0')); m++; if(m>12){m=1;y++;} }
+    periods = out;
+  }
+  let list = [...cats.values()];
+  if(cmp.hideZero) list = list.filter(c=>Math.abs(c.total)>=0.005);
+  const pk = cmp.sortKey;
+  const val = c=> pk==='name' ? c.name.toLowerCase() : (pk==='total' ? c.total : (c.per.get(pk)||0));
+  list.sort((a,b)=>{ const x=val(a), y=val(b); return (typeof x==='string' ? x.localeCompare(y,'pt-BR') : x-y) * (pk==='name' ? -cmp.sortDir : cmp.sortDir) || a.name.localeCompare(b.name,'pt-BR'); });
+  return {periods, list};
+}
+function cmpSyncControls(){
+  const $ = id=>document.getElementById(id);
+  $('cmp_type').value = cmp.type; $('cmp_from').value = cmp.from; $('cmp_to').value = cmp.to;
+  $('cmp_group').value = cmp.group; $('cmp_hidezero').checked = cmp.hideZero;
+  $('cmpAccChips').innerHTML = STATE.accounts.map((n,i)=>`<button class="chip ${cmp.accs.has(i)?'active':''}" data-acc="${i}">${escH(n)}</button>`).join('');
+  cmpRenderCatChips();
+}
+function cmpRenderCatChips(){
+  const q = cmp.catSearch.trim().toLowerCase();
+  const cats = [...STATE.cats].sort((a,b)=>a.localeCompare(b,'pt-BR')).filter(c=>!q||c.toLowerCase().includes(q));
+  document.getElementById('cmpCatChips').innerHTML = cats.map(c=>`<button class="chip ${cmp.cats.has(c)?'active':''} ${cmpIsNonExp(c)?'nonexp':''}" data-cat="${escH(c)}" title="${cmpIsNonExp(c)?'Não é conta de despesa (pagamento de cartão / caixa)':''}">${escH(c)}</button>`).join('') || '<span style="color:var(--text-faint);font-size:12px;">Nenhuma categoria.</span>';
+  document.getElementById('cmpCatCount').textContent = `${cmp.cats.size} de ${STATE.cats.length} selecionadas`;
+}
+function cmpRender(){
+  if(cmpSyncNew()) cmpSyncControls();
+  const V = cmpCompute(); cmpView = V;
+  const {periods, list} = V;
+  const table = document.getElementById('pivotTable');
+  const nP = Math.max(periods.length,1);
+  const grand = list.reduce((s,c)=>s+c.total,0);
+  const sumPer = p=> list.reduce((s,c)=>s+(c.per.get(p)||0),0);
+  // cartões-resumo
+  const top = [...list].sort((a,b)=>Math.abs(b.total)-Math.abs(a.total))[0];
+  const typeLbl = cmp.type==='D'?'Despesas (débitos)':(cmp.type==='C'?'Receitas (créditos)':'Resultado (créditos − débitos)');
+  document.getElementById('cmpSummary').innerHTML = `
+    <div class="acc-card"><div class="name">${typeLbl}</div><div class="bal mono ${grand<0?'neg':''}">${fmtBRL(grand)}</div><div class="meta">${list.length} contas · ${periods.length} períodos</div></div>
+    <div class="acc-card" style="--acc-color:#7DA3FF"><div class="name">Média por ${cmp.group==='year'?'ano':(cmp.group==='quarter'?'trimestre':'mês')}</div><div class="bal mono">${fmtBRL(grand/nP)}</div><div class="meta">${dBR(cmp.from)||'início'} a ${dBR(cmp.to)||'hoje'}</div></div>
+    <div class="acc-card" style="--acc-color:#C792EA"><div class="name">Maior conta</div><div class="bal mono" style="font-size:16px;">${top?escH(top.name):'—'}</div><div class="meta">${top?fmtBRL(top.total)+' ('+nf2(grand?top.total/grand*100:0)+'%)':''}</div></div>`;
+  if(!list.length){
+    table.innerHTML = '<tbody><tr><td style="padding:20px;color:var(--text-faint);">Nenhum lançamento para esse filtro.</td></tr></tbody>';
+    cmpDrawChart(periods, []); return;
+  }
+  const arrow = k=> cmp.sortKey===k ? (((k==='name') ? cmp.sortDir<0 : cmp.sortDir>0) ? ' ▲' : ' ▼') : '';
+  let html = `<thead><tr><th class="cb"><input type="checkbox" id="cmpSelAll" title="Marcar/desmarcar todas as linhas"></th><th class="cmp-th" data-sort="name" style="text-align:left;">Conta de despesa${arrow('name')}</th>`;
+  periods.forEach(p=> html += `<th class="cmp-th" data-sort="${p}">${cmpPeriodLabel(p)}${arrow(p)}</th>`);
+  html += `<th class="cmp-th" data-sort="total">Total${arrow('total')}</th><th>Média</th><th>%</th></tr></thead><tbody>`;
+  const cell = (v, cat, sub, p)=> v ? `<td class="num drill" data-cat="${escH(cat)}" data-sub="${escH(sub||'')}" data-p="${p}">${nf2(v)}</td>` : '<td class="num dim">—</td>';
+  list.forEach(c=>{
+    const open = cmp.expanded.has(c.name);
+    const sel = cmp.selected.has(c.name);
+    html += `<tr class="${sel?'sel':''}"><td class="cb"><input type="checkbox" data-rowsel="${escH(c.name)}" ${sel?'checked':''}></td><td class="rowlabel toggle" data-exp="${escH(c.name)}">${open?'▾':'▸'} ${escH(c.name)}</td>`;
+    periods.forEach(p=> html += cell(c.per.get(p)||0, c.name, '', p));
+    html += `<td class="num tot drill" data-cat="${escH(c.name)}" data-sub="" data-p="">${nf2(c.total)}</td><td class="num">${nf2(c.total/nP)}</td><td class="num">${nf2(grand?c.total/grand*100:0)}%</td></tr>`;
+    if(open){
+      [...c.subs.values()].sort((a,b)=>Math.abs(b.total)-Math.abs(a.total)).forEach(s=>{
+        html += `<tr class="subrow"><td class="cb"></td><td class="rowlabel sub">${escH(s.name)}</td>`;
+        periods.forEach(p=> html += cell(s.per.get(p)||0, c.name, s.name, p));
+        html += `<td class="num tot drill" data-cat="${escH(c.name)}" data-sub="${escH(s.name)}" data-p="">${nf2(s.total)}</td><td class="num">${nf2(s.total/nP)}</td><td class="num">${nf2(grand?s.total/grand*100:0)}%</td></tr>`;
+      });
+    }
+  });
+  // somatórias
+  html += `<tr class="total-row"><td class="cb"></td><td class="rowlabel">Total (${list.length} contas)</td>`;
+  periods.forEach(p=> html += `<td class="num">${nf2(sumPer(p))}</td>`);
+  html += `<td class="num">${nf2(grand)}</td><td class="num">${nf2(grand/nP)}</td><td class="num">100%</td></tr>`;
+  const selList = list.filter(c=>cmp.selected.has(c.name));
+  if(selList.length){
+    const st = selList.reduce((s,c)=>s+c.total,0);
+    html += `<tr class="total-row sel-total"><td class="cb"></td><td class="rowlabel">Soma das ${selList.length} marcadas</td>`;
+    periods.forEach(p=> html += `<td class="num">${nf2(selList.reduce((s,c)=>s+(c.per.get(p)||0),0))}</td>`);
+    html += `<td class="num">${nf2(st)}</td><td class="num">${nf2(st/nP)}</td><td class="num">${nf2(grand?st/grand*100:0)}%</td></tr>`;
+  }
+  html += '</tbody>';
+  table.innerHTML = html;
+  const all = document.getElementById('cmpSelAll');
+  all.checked = list.length>0 && list.every(c=>cmp.selected.has(c.name));
+  cmpDrawChart(periods, selList.length ? selList : list);
+  document.getElementById('cmpChartSub').textContent = selList.length ? `Soma das ${selList.length} contas marcadas por período` : 'Total das contas exibidas por período';
+}
+function cmpDrawChart(periods, rows){
+  try{
+    const data = periods.map(p=>rows.reduce((s,c)=>s+(c.per.get(p)||0),0));
+    const ctx = document.getElementById('cmpChart').getContext('2d');
+    if(cmpChart) cmpChart.destroy();
+    cmpChart = new Chart(ctx, { type:'bar',
+      data:{ labels:periods.map(cmpPeriodLabel), datasets:[{label:'Total', data, backgroundColor:'#F0BD5E', borderRadius:3, maxBarThickness:26}] },
+      options:{ responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>' '+fmtBRL(c.raw)}} },
+        scales:{ x:{ticks:{color:'#5C6678',font:{size:10},maxRotation:0,autoSkip:true},grid:{display:false}},
+                 y:{ticks:{color:'#5C6678',font:{size:10},callback:v=>'R$'+(v/1000).toFixed(0)+'k'},grid:{color:'#262F3B'}} } } });
+  }catch(e){ console.error('cmpDrawChart', e); }
+}
+function cmpDrill(cat, sub, p){
+  const rows = cmpRows().filter(t=>t.cat===cat && (!sub || (t.sub||'(sem sub-conta)')===sub) && (!p || cmpPeriodKey(t.date)===p))
+    .sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id);
+  const total = rows.reduce((s,t)=>s+cmpValue(t),0);
+  document.getElementById('drill_title').textContent = `${cat}${sub?' › '+sub:''}${p?' · '+cmpPeriodLabel(p):''}`;
+  document.getElementById('drill_sum').innerHTML = `${rows.length} lançamentos · total <b class="mono">${fmtBRL(total)}</b>`;
+  document.getElementById('drill_body').innerHTML = rows.slice(0,500).map(t=>`<tr><td class="mono">${dBR(t.date)}</td><td>${escH(STATE.accounts[t.acc])}</td><td>${escH(t.desc)}${t.sub?` <small>[${escH(t.sub)}]</small>`:''}</td><td class="num mono ${cmpValue(t)<0?'neg':''}">${nf2(cmpValue(t))}</td></tr>`).join('')
+    + (rows.length>500 ? `<tr><td colspan="4" style="color:var(--text-faint);">… mostrando os 500 primeiros</td></tr>` : '');
+  document.getElementById('drillBackdrop').classList.add('show');
+}
+function cmpExportCSV(){
+  const V = cmpView || cmpCompute();
+  const rows = V.list.map(c=>[c.name, ...V.periods.map(p=>nf2(c.per.get(p)||0)), nf2(c.total)]);
+  downloadCSV('Comparativo.csv', ['Conta de despesa', ...V.periods.map(cmpPeriodLabel), 'Total'], rows);
+}
+function wireCmpEvents(){
+  const $ = id=>document.getElementById(id);
+  $('cmp_type').addEventListener('change', e=>{ cmp.type=e.target.value; cmpRender(); });
+  $('cmp_from').addEventListener('change', e=>{ cmp.from=e.target.value; cmpRender(); });
+  $('cmp_to').addEventListener('change', e=>{ cmp.to=e.target.value; cmpRender(); });
+  $('cmp_group').addEventListener('change', e=>{ cmp.group=e.target.value; cmp.sortKey='total'; cmpRender(); });
+  $('cmp_hidezero').addEventListener('change', e=>{ cmp.hideZero=e.target.checked; cmpRender(); });
+  $('cmpPresets').addEventListener('click', e=>{
+    const b = e.target.closest('button[data-pre]'); if(!b) return;
+    const now = new Date(), y = now.getFullYear();
+    const pre = b.dataset.pre;
+    if(pre==='12m'){ cmp.from = new Date(Date.UTC(y, now.getMonth()-11, 1)).toISOString().slice(0,10); cmp.to = todayISO(); }
+    else if(pre==='ytd'){ cmp.from = y+'-01-01'; cmp.to = todayISO(); }
+    else if(pre==='lastyear'){ cmp.from = (y-1)+'-01-01'; cmp.to = (y-1)+'-12-31'; }
+    else if(pre==='all'){ cmp.from = ''; cmp.to = ''; }
+    cmp.sortKey = 'total'; cmpSyncControls(); cmpRender();
+  });
+  $('cmpAccChips').addEventListener('click', e=>{
+    const b = e.target.closest('button[data-acc]'); if(!b) return;
+    const i = parseInt(b.dataset.acc,10); cmp.accs.has(i) ? cmp.accs.delete(i) : cmp.accs.add(i);
+    b.classList.toggle('active'); cmpRender();
+  });
+  $('cmpAccAll').addEventListener('click', ()=>{ cmp.accs = new Set(STATE.accounts.map((_,i)=>i)); cmpSyncControls(); cmpRender(); });
+  $('cmpAccNone').addEventListener('click', ()=>{ cmp.accs = new Set(); cmpSyncControls(); cmpRender(); });
+  $('cmpCatChips').addEventListener('click', e=>{
+    const b = e.target.closest('button[data-cat]'); if(!b) return;
+    const c = b.dataset.cat; cmp.cats.has(c) ? cmp.cats.delete(c) : cmp.cats.add(c);
+    b.classList.toggle('active'); document.getElementById('cmpCatCount').textContent = `${cmp.cats.size} de ${STATE.cats.length} selecionadas`; cmpRender();
+  });
+  $('cmpCatExp').addEventListener('click', ()=>{ cmp.cats = new Set(STATE.cats.filter(c=>!cmpIsNonExp(c))); cmpRenderCatChips(); cmpRender(); });
+  $('cmpCatAll').addEventListener('click', ()=>{ cmp.cats = new Set(STATE.cats); cmpRenderCatChips(); cmpRender(); });
+  $('cmpCatNone').addEventListener('click', ()=>{ cmp.cats = new Set(); cmpRenderCatChips(); cmpRender(); });
+  $('cmpCatVisible').addEventListener('click', ()=>{ // marca só as categorias que aparecem na busca
+    const q = cmp.catSearch.trim().toLowerCase();
+    cmp.cats = new Set(STATE.cats.filter(c=>!q || c.toLowerCase().includes(q))); cmpRenderCatChips(); cmpRender();
+  });
+  let tm; $('cmp_catsearch').addEventListener('input', e=>{ cmp.catSearch=e.target.value; clearTimeout(tm); tm=setTimeout(cmpRenderCatChips,120); });
+  $('cmpExportBtn').addEventListener('click', cmpExportCSV);
+  $('cmpClearSel').addEventListener('click', ()=>{ cmp.selected = new Set(); cmpRender(); });
+  $('pivotTable').addEventListener('click', e=>{
+    const th = e.target.closest('th.cmp-th');
+    if(th){ const k = th.dataset.sort; if(cmp.sortKey===k) cmp.sortDir = -cmp.sortDir; else { cmp.sortKey=k; cmp.sortDir = k==='name' ? -1 : -1; } cmpRender(); return; }
+    if(e.target.id==='cmpSelAll'){ const on = e.target.checked; cmpView.list.forEach(c=>{ on ? cmp.selected.add(c.name) : cmp.selected.delete(c.name); }); cmpRender(); return; }
+    const cb = e.target.closest('input[data-rowsel]');
+    if(cb){ const n = cb.dataset.rowsel; cb.checked ? cmp.selected.add(n) : cmp.selected.delete(n); cmpRender(); return; }
+    const tg = e.target.closest('td.toggle');
+    if(tg){ const n = tg.dataset.exp; cmp.expanded.has(n) ? cmp.expanded.delete(n) : cmp.expanded.add(n); cmpRender(); return; }
+    const dr = e.target.closest('td.drill');
+    if(dr) cmpDrill(dr.dataset.cat, dr.dataset.sub, dr.dataset.p);
+  });
+  $('cmpExpandAll').addEventListener('click', ()=>{ cmpView.list.forEach(c=>cmp.expanded.add(c.name)); cmpRender(); });
+  $('cmpCollapseAll').addEventListener('click', ()=>{ cmp.expanded = new Set(); cmpRender(); });
+  $('drillCloseBtn').addEventListener('click', ()=>$('drillBackdrop').classList.remove('show'));
+  $('drillBackdrop').addEventListener('click', e=>{ if(e.target.id==='drillBackdrop') $('drillBackdrop').classList.remove('show'); });
+}
+
 /* ============ Boot ============ */
 async function startApp(){
   await loadData();
   ensureAccountsExist();
   await loadExtraData();
+  await loadLinks();
   await runExtraSync();
   renderAccSelects();
   renderCatDatalist();
