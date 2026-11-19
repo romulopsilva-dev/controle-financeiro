@@ -623,6 +623,9 @@ footer button{margin-left:6px;}
 .bon-sheet td.empty-state{text-align:center;padding:24px;white-space:normal;}
 .bm-split{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:6px;}
 .bm-split .field{margin:0;}
+
+.rep-card{padding:10px 12px;margin-bottom:8px;border:1px solid var(--border);border-radius:10px;font-size:12.5px;line-height:1.6;background:var(--surface-2);}
+.rep-card.ok{border-left:3px solid var(--income);} .rep-card.warn{border-left:3px solid var(--gold);} .rep-card.bad{border-left:3px solid var(--expense);} .rep-card.off{opacity:0.6;}
 </style>
 </head>
 <body>
@@ -947,6 +950,8 @@ footer button{margin-left:6px;}
             <select id="pc_status" style="min-width:170px;"></select>
             <input type="text" id="pc_search" placeholder="buscar…" style="min-width:180px;">
             <button class="btn-secondary" id="prestExportBtn">Exportar CSV</button>
+            <button class="btn-secondary" id="prestRepBtn" title="Concilia cada reembolso com o relatório de despesas (.xlsx) de mesmo total">Importar relatórios (.xlsx)</button>
+            <input type="file" id="prestRepFile" accept=".xlsx,.xls" multiple style="display:none;">
           </div>
           <div class="ledger-count" id="pcCount">—</div>
         </div>
@@ -1370,6 +1375,12 @@ footer button{margin-left:6px;}
   <div class="modal" style="width:760px;max-height:92vh;overflow-y:auto;">
     <h3 id="cl_title">Vincular despesas ao reembolso</h3>
     <div id="cl_info"></div>
+    <details id="cl_report_wrap" style="display:none;margin-top:10px;">
+      <summary style="cursor:pointer;font-weight:600;font-size:13px;color:var(--gold);">Conciliar pelo relatório de despesas (colar o texto do PDF)</summary>
+      <textarea id="cl_report" rows="5" style="width:100%;margin-top:8px;background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px;font-size:12px;" placeholder="Abra o PDF do relatório, selecione tudo (Ctrl+A), copie (Ctrl+C) e cole aqui…"></textarea>
+      <button class="btn-secondary" id="clReportBtn" style="margin-top:6px;">Identificar despesas pelo relatório</button>
+      <div id="cl_report_res" style="margin-top:8px;font-size:12.5px;line-height:1.6;"></div>
+    </details>
     <div class="rbm-head"><span>Data</span><span>Despesa</span><span>Valor pago</span><span>Em aberto</span><span>Alocar (R$)</span></div>
     <div id="cl_list" class="rbm-list"></div>
     <div id="cl_sum" style="margin-top:10px;font-size:13px;"></div>
@@ -1428,6 +1439,17 @@ footer button{margin-left:6px;}
   </div>
 </div>
 
+<div class="modal-backdrop" id="repModalBackdrop">
+  <div class="modal" style="width:980px;max-height:92vh;overflow-y:auto;">
+    <h3>Conciliar reembolsos pelos relatórios de despesas</h3>
+    <div class="import-hint" id="rep_info" style="margin-bottom:10px;"></div>
+    <div id="rep_list"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="repCancelBtn">Cancelar</button>
+      <button class="btn-primary" id="repApplyBtn">Aplicar vínculos marcados</button>
+    </div>
+  </div>
+</div>
 <input type="file" id="rowHoleriteFileInput" accept="application/pdf" style="display:none;">
 
 <div class="toast" id="toast"></div>
@@ -4235,7 +4257,7 @@ function reconApplyManual(scope, exps, creds){
   LINKS.allocs.filter(a=>a.s===scope).forEach(a=>{
     const e = byE.get(a.e), c = byC.get(a.c);
     if(!e || !c) return;
-    const v = Math.min(toC(a.v), c.rem);
+    const v = Math.min(toC(a.v), c.rem + PREST_TOL_C);
     if(v<=0) return;
     linkAdd(e, c, v, 'manual'); e.manual = true;
   });
@@ -4437,6 +4459,7 @@ function amilBuild(allTx, start){
 
 /* ---------------- Prestação de Contas ---------------- */
 const PREST_TOL_C = 5;   // tolerância de arredondamento: R$ 0,05
+const PREST_WINDOW_DAYS = 150;   // um reembolso só quita despesas dos 150 dias anteriores a ele (acima disso a soma "bate" por coincidência)
 function prestBuild(allTx){
   const exps=[], creds=[];
   allTx.forEach(t=>{
@@ -4456,11 +4479,11 @@ function prestBuild(allTx){
   const ps=[];
   exps.forEach(e=>{
     if(!free(e)) return;
-    credsAsc.forEach(c=>{ if(c.rem===e.c){ const lag = daysBetween(e.date, c.date); if(lag>=0 && lag<=400) ps.push({e, c, lag}); } });
+    credsAsc.forEach(c=>{ if(c.rem===e.c){ const lag = daysBetween(e.date, c.date); if(lag>=0 && lag<=PREST_WINDOW_DAYS) ps.push({e, c, lag}); } });
   });
   ps.sort((a,b)=>a.lag-b.lag||a.e.date.localeCompare(b.e.date));
   ps.forEach(p=>{ if(free(p.e) && p.c.rem===p.e.c) linkAdd(p.e, p.c, p.e.c, 'exato'); });
-  const openPool = c=> exps.filter(e=>free(e) && e.date<=c.date).sort((a,b)=>a.date.localeCompare(b.date)||a.id-b.id);
+  const openPool = c=> exps.filter(e=>free(e) && e.date<=c.date && e.date>=addDaysISO(c.date, -PREST_WINDOW_DAYS)).sort((a,b)=>a.date.localeCompare(b.date)||a.id-b.id);
   // B) bloco de despesas consecutivas (ordem de data) cuja soma é o reembolso, com no máximo K lacunas
   //    (despesas puladas no meio). Tenta primeiro soma exata e depois diferença de até R$ 0,05
   //    (arredondamentos); começa por K=0 e só afrouxa depois; prefere o bloco mais recente.
@@ -4562,12 +4585,16 @@ function openCredLinkModal(scope, id){
   const cutoff = scope==='amil' ? addDaysISO(c.date, 5) : c.date;
   const list = V.exps.filter(e=>e.date<=cutoff && e.status!=='estornada').map(e=>{
     const mine = e.links.filter(l=>l.c===c).reduce((s,l)=>s+l.v,0);
-    const other = e.links.filter(l=>l.c!==c).reduce((s,l)=>s+l.v,0);
-    return {e, mine, open:e.c-other};
-  }).filter(x=>x.open>0 || x.mine>0)
+    const otherL = e.links.filter(l=>l.c!==c);
+    const other = otherL.reduce((s,l)=>s+l.v,0);
+    const otherManual = otherL.filter(l=>l.kind==='manual').reduce((s,l)=>s+l.v,0);
+    return {e, mine, open:e.c-other, otherManual, stealable:other-otherManual};
+  }).filter(x=>x.open>0 || x.mine>0 || (scope==='prest' && x.stealable>0))
     .sort((a,b)=>b.e.date.localeCompare(a.e.date)||b.e.id-a.e.id).slice(0,150);
   credCtx = {scope, id, cred:c, list};
   document.getElementById('cl_title').textContent = scope==='amil' ? 'Vincular despesas ao reembolso Amil' : 'Vincular despesas ao reembolso da prestação de contas';
+  document.getElementById('cl_report_wrap').style.display = scope==='prest' ? 'block' : 'none';
+  document.getElementById('cl_report').value = ''; document.getElementById('cl_report_res').innerHTML = '';
   document.getElementById('cl_info').innerHTML = `<div class="rbm-exp"><b>${dBR(c.date)}</b> · ${escH(STATE.accounts[c.acc])} · ${escH(c.desc)}<br>Valor recebido: <b class="mono">${fmtC(c.c)}</b></div>`;
   document.getElementById('cl_list').innerHTML = list.length ? list.map((x,i)=>`
     <div class="rbm-row ${x.open<=0&&!x.mine?'dim':''}">
@@ -4599,8 +4626,10 @@ async function saveCredModal(reset){
     });
     // congela os outros vínculos (automáticos) das despesas mexidas, para não se perderem
     list.filter(x=>x.mine>0 || sel.has(x.e.id)).forEach(x=>{
+      const stealing = sel.has(x.e.id) && sel.get(x.e.id) > Math.max(x.open,0) + PREST_TOL_C;
       x.e.links.forEach(l=>{
         if(l.c===cred || l.c.manualEntry) return;
+        if(stealing && l.kind!=='manual') return;
         if(!LINKS.allocs.some(a=>a.s===scope && a.e===x.e.id && a.c===l.c.id)) LINKS.allocs.push({s:scope, e:x.e.id, c:l.c.id, v:l.v/100});
       });
     });
@@ -4914,6 +4943,8 @@ function wireReconEvents(){
     inp.value = (Math.min(parseInt(f.dataset.open,10), room) / 100) || '';
     clUpdateSum();
   });
+  $('clReportBtn').addEventListener('click', clApplyReport);
+  wirePrestRep();
   $('clCancelBtn').addEventListener('click', closeCredModal);
   $('clSaveBtn').addEventListener('click', ()=>saveCredModal(false));
   $('clResetBtn').addEventListener('click', ()=>saveCredModal(true));
@@ -5894,6 +5925,259 @@ function wireBonEvents(){
   $('bmDeleteBtn').addEventListener('click', deleteBonContract);
   $('bm_split').addEventListener('click', e=>{ if(e.target.closest('#bmCalcBtn')) bonModalCalc(); });
   $('bonModalBackdrop').addEventListener('click', e=>{ if(e.target.id==='bonModalBackdrop') closeBonEdit(); });
+}
+
+/* ============ Conciliar reembolsos pelo relatório de despesas ============
+   Só pelos valores não dá para saber quais despesas um reembolso quitou (há milhares de combinações que
+   somam o mesmo total). O relatório de despesas diz exatamente quais foram. Duas formas de usar:
+   (1) no 🔗 de um reembolso da Prestação de Contas: colar o texto do relatório (PDF);
+   (2) botão "Importar relatórios (.xlsx)": vários arquivos de uma vez, cada um é ligado ao reembolso de mesmo total. */
+const PREST_NEAR_DAYS = 4;     // despesa lançada até 4 dias do dia da despesa no relatório
+const PREST_FAR_DAYS = 60;     // valor idêntico e nenhuma outra opção: aceita data mais distante (hotel pré-pago, PIX depois)
+const PREST_JOIN_DAYS = 10;    // 2–3 linhas do relatório que foram lançadas como um único lançamento
+
+function parseExpenseReport(text){
+  const num = s=>toC(parseFloat(s.replace(/\./g,'').replace(',','.')));
+  const items = [];
+  const re = /(\d{2})\/(\d{2})\/(\d{4})((?:(?!\d{2}\/\d{2}\/\d{4})[\s\S]){0,500}?)BRL(?:(?!\d{2}\/\d{2}\/\d{4})[\s\S]){0,160}?(\d{1,3}(?:\.\d{3})*,\d{2})/g;
+  let m;
+  while((m = re.exec(text))){
+    items.push({date:`${m[3]}-${m[2]}-${m[1]}`, c:num(m[5]), label:m[4].replace(/\s+/g,' ').trim().slice(0,50)});
+  }
+  if(!items.length){   // texto simples: uma despesa por linha, "dd/mm/aaaa ... valor"
+    const re2 = /(\d{2})\/(\d{2})\/(\d{4}).*?(\d{1,3}(?:\.\d{3})*,\d{2})\s*$/gm;
+    while((m = re2.exec(text))) items.push({date:`${m[3]}-${m[2]}-${m[1]}`, c:num(m[4]), label:''});
+  }
+  return items;
+}
+
+/* Casa as linhas do relatório com os lançamentos. cands = [{id, e, avail, stealable}] (avail em centavos).
+   Retorna {picks: Map(id -> centavos), notFound: [linhas], notes: [{item, e, days, kind}]}. */
+function prestMatchReport(items0, cands){
+  const items = items0.map(i=>({...i}));
+  const used = new Set(), picks = new Map(), notes = [];
+  const dd = (a,b)=>Math.abs(daysBetween(a,b));
+  const pen = o=>/duplic|reemb|estorn/i.test(o.e.desc) ? 1 : 0;
+  const lex = (a,b)=>{ for(let i=0;i<a.length;i++){ if(a[i]!==b[i]) return a[i]-b[i]; } return 0; };
+  const take = o=>{ used.add(o.id); picks.set(o.id, o.avail); };
+  // 1) uma despesa lançada com o mesmo valor (±0,05) e data próxima
+  let left = [];
+  items.forEach(it=>{
+    let best = null;
+    cands.forEach(o=>{
+      if(used.has(o.id)) return;
+      const dv = Math.abs(o.avail-it.c), d = dd(o.e.date, it.date);
+      if(dv>PREST_TOL_C || d>PREST_NEAR_DAYS) return;
+      const sc = [dv, pen(o), o.stealable>0?1:0, d];
+      if(!best || lex(sc, best.sc)<0) best = {o, sc};
+    });
+    if(best) take(best.o); else left.push(it);
+  });
+  // 2) o relatório traz 1 item, mas foram lançados 2–3 (mesma conta de preferência): 750,00 + 13,20 = 763,20
+  const left2 = [];
+  left.sort((a,b)=>b.c-a.c).forEach(it=>{
+    const near = cands.filter(o=>!used.has(o.id) && dd(o.e.date, it.date)<=PREST_NEAR_DAYS && o.avail<it.c+PREST_TOL_C);
+    let best = null;
+    const test = arr=>{
+      const s = arr.reduce((q,o)=>q+o.avail,0);
+      if(Math.abs(s-it.c)>PREST_TOL_C) return;
+      const accs = new Set(arr.map(o=>o.e.acc)).size;
+      const spread = Math.max(...arr.map(o=>dd(o.e.date, it.date)));
+      const sc = [Math.abs(s-it.c), accs>1?1:0, arr.reduce((q,o)=>q+pen(o),0), spread, arr.length];
+      if(!best || lex(sc, best.sc)<0) best = {arr, sc};
+    };
+    for(let a=0;a<near.length;a++) for(let b=a+1;b<near.length;b++){
+      test([near[a],near[b]]);
+      if(near.length<=30) for(let c=b+1;c<near.length;c++) test([near[a],near[b],near[c]]);
+    }
+    if(best) best.arr.forEach(take); else left2.push(it);
+  });
+  // 3) o contrário: 2–3 linhas do relatório foram lançadas como um lançamento só (1.990,35 + 474,60 = 2.464,95)
+  let left3 = left2.slice();
+  cands.filter(o=>!used.has(o.id)).sort((a,b)=>b.avail-a.avail).forEach(o=>{
+    if(used.has(o.id)) return;
+    const near = left3.filter(it=>dd(o.e.date, it.date)<=PREST_JOIN_DAYS && it.c<o.avail+PREST_TOL_C);
+    let best = null;
+    const test = arr=>{
+      const s = arr.reduce((q,i)=>q+i.c,0);
+      if(Math.abs(s-o.avail)>PREST_TOL_C) return;
+      const spread = Math.max(...arr.map(i=>dd(o.e.date, i.date)));
+      const sc = [Math.abs(s-o.avail), spread, arr.length];
+      if(!best || lex(sc, best.sc)<0) best = {arr, sc};
+    };
+    for(let a=0;a<near.length;a++) for(let b=a+1;b<near.length;b++){
+      test([near[a],near[b]]);
+      if(near.length<=20) for(let c=b+1;c<near.length;c++) test([near[a],near[b],near[c]]);
+    }
+    if(best){ take(o); best.arr.forEach(i=>{ left3 = left3.filter(x=>x!==i); notes.push({item:i, e:o.e, days:dd(o.e.date,i.date), kind:'junta'}); }); }
+  });
+  // 4) valor idêntico e nenhuma outra opção: aceita data mais distante (e avisa)
+  const notFound = [];
+  left3.sort((a,b)=>b.c-a.c).forEach(it=>{
+    let best = null;
+    cands.forEach(o=>{
+      if(used.has(o.id)) return;
+      const dv = Math.abs(o.avail-it.c), d = dd(o.e.date, it.date);
+      if(dv>PREST_TOL_C || d>PREST_FAR_DAYS) return;
+      const sc = [d, dv, pen(o)];
+      if(!best || lex(sc, best.sc)<0) best = {o, sc};
+    });
+    if(best){ take(best.o); notes.push({item:it, e:best.o.e, days:dd(best.o.e.date,it.date), kind:'distante'}); }
+    else notFound.push(it);
+  });
+  return {picks, notFound, notes};
+}
+const repNoteTxt = n=>`${dBR(n.item.date)} ${fmtC(n.item.c)}${n.item.label?' ('+escH(n.item.label)+')':''} → ${dBR(n.e.date)} ${escH(n.e.desc)}${n.kind==='junta'?' (lançado junto com outra linha)':' ('+n.days+' dias de diferença)'}`;
+const repLineTxt = i=>`${dBR(i.date)} ${fmtC(i.c)}${i.label?' ('+escH(i.label)+')':''}`;
+
+/* ---- (1) colar o texto do relatório no modal do reembolso ---- */
+function clApplyReport(){
+  if(!credCtx) return;
+  const res = document.getElementById('cl_report_res');
+  const items = parseExpenseReport(document.getElementById('cl_report').value);
+  if(!items.length){ res.innerHTML = '<span class="neg">Não encontrei despesas (data + valor em BRL) no texto colado.</span>'; return; }
+  // disponível = valor da despesa menos o que já foi ligado MANUALMENTE a outro reembolso (vínculos
+  // automáticos de outros reembolsos são só palpite e podem ser retomados pelo relatório)
+  const cands = credCtx.list.map((x,i)=>({id:i, e:x.e, stealable:x.stealable, avail:Math.max(x.e.c - x.otherManual, 0)})).filter(o=>o.avail>0);
+  const M = prestMatchReport(items, cands);
+  document.querySelectorAll('#cl_list input').forEach(i=>{ i.value = ''; });
+  let room = credCtx.cred.c + PREST_TOL_C, tot = 0;
+  [...M.picks.entries()].sort((a,b)=>a[0]-b[0]).forEach(([i, v])=>{
+    const t = Math.min(v, room); if(t<=0) return;
+    document.querySelector(`#cl_list input[data-i="${i}"]`).value = t/100; room -= t; tot += t;
+  });
+  clUpdateSum();
+  const repTot = items.reduce((s,i)=>s+i.c,0);
+  res.innerHTML = `<div><b>${items.length-M.notFound.length} de ${items.length}</b> despesas do relatório identificadas (${M.picks.size} lançamentos, ${fmtC(tot)}). Total do relatório: ${fmtC(repTot)} · reembolso: ${fmtC(credCtx.cred.c)}.</div>`
+    + (M.notes.length ? `<div style="color:var(--gold);">Confira: ${M.notes.map(repNoteTxt).join(' · ')}</div>` : '')
+    + (M.notFound.length ? `<div class="neg">Não encontradas no app: ${M.notFound.map(repLineTxt).join(' · ')}</div>` : '')
+    + '<div class="import-hint" style="margin:4px 0 0;">Confira a lista abaixo e clique em Salvar. Com lançamentos repetidos de mesmo valor, o app prefere o que não é "duplicidade/reembolso" e a mesma conta.</div>';
+}
+
+/* ---- (2) importar vários relatórios .xlsx de uma vez ---- */
+let prestRepPlan = null;
+function prestRepParseRows(rows){
+  let h = rows.findIndex(r=>r.some(c=>/^date$|^data$/i.test(String(c).trim())) && r.some(c=>/approved|aprovad|^valor$|amount/i.test(String(c).trim())));
+  if(h<0) return null;
+  const head = rows[h].map(c=>String(c).trim().toLowerCase());
+  const ci = rx=>head.findIndex(c=>rx.test(c));
+  const iD = ci(/^date$|^data$/), iV = ci(/approved|aprovad|^valor$|amount/), iVend = ci(/vendor|fornecedor/), iT = ci(/expense type|tipo/);
+  const items = [];
+  rows.slice(h+1).forEach(r=>{
+    const d = r[iD]; if(d==='' || d==null) return;
+    let iso = null;
+    if(typeof d==='number' && d>20000){ iso = new Date(Math.round((d-25569)*86400000)).toISOString().slice(0,10); }
+    else { const m = String(d).trim().match(/^(\d{2})\/(\d{2})\/(\d{4})/); if(m) iso = `${m[3]}-${m[2]}-${m[1]}`; else { const m2 = String(d).trim().match(/^(\d{4})-(\d{2})-(\d{2})/); if(m2) iso = m2[0]; } }
+    if(!iso) return;
+    let v = r[iV], c;
+    if(typeof v==='number') c = toC(v);
+    else { const m = String(v).replace(/ /g,' ').match(/(\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2}|\d+\.\d{2})\s*$/); if(!m) return; c = m[1].includes(',') ? toC(parseFloat(m[1].replace(/\./g,'').replace(',','.'))) : toC(parseFloat(m[1])); }
+    items.push({date:iso, c, label:String(r[iVend]||'').slice(0,40), type:iT>=0?String(r[iT]||''):''});
+  });
+  return items.length ? items : null;
+}
+function prestRepReadFile(file){
+  return new Promise(res=>{
+    const rd = new FileReader();
+    rd.onload = e=>{
+      try{
+        const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, raw:true, defval:''});
+        const items = prestRepParseRows(rows);
+        if(!items) return res({file:file.name, error:'não reconheci as colunas (Date / Approved)'});
+        const dates = items.map(i=>i.date).sort();
+        res({file:file.name, items, totalC:items.reduce((s,i)=>s+i.c,0), from:dates[0], to:dates[dates.length-1],
+             hash:items.map(i=>i.date+':'+i.c).sort().join('|')});
+      }catch(err){ res({file:file.name, error:'arquivo ilegível'}); }
+    };
+    rd.onerror = ()=>res({file:file.name, error:'erro de leitura'});
+    rd.readAsArrayBuffer(file);
+  });
+}
+function prestRepBuildPlan(reports){
+  const baseAllocs = LINKS.allocs.slice();
+  const plan = [], tmp = [], usedCred = new Set(), seen = new Map();
+  try{
+    const baseV = prestBuild(STATE.tx);
+    reports.filter(r=>!r.error).sort((a,b)=>a.to.localeCompare(b.to)).forEach(rep=>{
+      if(seen.has(rep.hash)){ plan.push({rep, dup:seen.get(rep.hash)}); return; }
+      seen.set(rep.hash, rep.file);
+      LINKS.allocs = baseAllocs.concat(tmp);
+      const V = prestBuild(STATE.tx);
+      const cred = V.creds.filter(c=>!c.prev && !usedCred.has(c.id) && Math.abs(c.c-rep.totalC)<=PREST_TOL_C && c.date>=rep.to)
+        .sort((a,b)=>a.date.localeCompare(b.date)||a.id-b.id)[0];
+      if(!cred){ plan.push({rep, cred:null}); return; }
+      usedCred.add(cred.id);
+      const lo = addDaysISO(rep.from, -PREST_FAR_DAYS);
+      const cands = V.exps.filter(e=>e.date<=cred.date && e.date>=lo).map(e=>{
+        const manual = e.links.filter(l=>l.kind==='manual' && l.c!==cred).reduce((s,l)=>s+l.v,0);
+        const other = e.links.filter(l=>l.c!==cred).reduce((s,l)=>s+l.v,0);
+        return {id:e.id, e, avail:Math.max(e.c-manual,0), stealable:other-manual};
+      }).filter(o=>o.avail>0);
+      const M = prestMatchReport(rep.items, cands);
+      M.picks.forEach((avail, id)=>tmp.push({s:'prest', e:id, c:cred.id, v:avail/100}));
+      const bc = baseV.creds.find(c=>c.id===cred.id);
+      const cur = new Set(bc ? bc.exps.map(x=>x.e.id) : []);
+      const diff = [...M.picks.keys()].filter(id=>!cur.has(id)).length + [...cur].filter(id=>!M.picks.has(id)).length;
+      plan.push({rep, cred, M, same: diff===0, diff, sumC:[...M.picks.values()].reduce((s,v)=>s+v,0)});
+    });
+  } finally { LINKS.allocs = baseAllocs; }
+  reports.filter(r=>r.error).forEach(r=>plan.push({rep:r, error:r.error}));
+  return plan;
+}
+function prestRepRender(){
+  const plan = prestRepPlan;
+  const ok = plan.filter(p=>p.cred);
+  document.getElementById('rep_info').innerHTML = `${plan.length} arquivo(s) lido(s). Cada relatório é ligado ao reembolso (Sispag) de mesmo total que veio depois da última despesa dele. Aplicar substitui os vínculos desses reembolsos pelos do relatório (os demais ficam como estão).`;
+  document.getElementById('rep_list').innerHTML = plan.map((p,i)=>{
+    const r = p.rep, per = r.from ? `${dBR(r.from)} a ${dBR(r.to)}` : '';
+    if(p.error) return `<div class="rep-card bad"><b>${escH(r.file)}</b><div class="neg">Ignorado: ${escH(p.error)}.</div></div>`;
+    if(p.dup) return `<div class="rep-card off"><b>${escH(r.file)}</b><div>Mesmo conteúdo de <i>${escH(p.dup)}</i> — ignorado (duplicado).</div></div>`;
+    if(!p.cred) return `<div class="rep-card bad"><b>${escH(r.file)}</b> · ${per} · ${r.items.length} despesas · <b>${fmtC(r.totalC)}</b><div class="neg">Nenhum reembolso de ${fmtC(r.totalC)} lançado depois de ${dBR(r.to)}: parece ainda não recebido (ou não lançado).</div></div>`;
+    const nf = p.M.notFound.length;
+    return `<div class="rep-card ${nf?'warn':'ok'}">
+      <label class="chk" style="text-transform:none;"><input type="checkbox" data-repi="${i}" ${(p.same&&!nf)?'':'checked'}> <b>${escH(r.file)}</b></label>
+      · ${per} · ${r.items.length} despesas · <b>${fmtC(r.totalC)}</b> → reembolso de <b>${dBR(p.cred.date)}</b> (${fmtC(p.cred.c)})
+      <div>${p.same && !nf ? '<span class="rb-badge st-ok">Já estava correto</span>' : `<span class="rb-badge st-part">Difere em ${p.diff} lançamento(s) do vínculo atual</span>`}
+        ${r.items.length-nf} de ${r.items.length} despesas identificadas (${p.M.picks.size} lançamentos, ${fmtC(p.sumC)}).</div>
+      ${p.M.notes.length ? `<div style="color:var(--gold);font-size:12px;">Confira: ${p.M.notes.map(repNoteTxt).join(' · ')}</div>` : ''}
+      ${nf ? `<div class="neg" style="font-size:12px;">Não encontradas no app: ${p.M.notFound.map(repLineTxt).join(' · ')}</div>` : ''}
+    </div>`;
+  }).join('') || '<div class="empty-state">Nada para conciliar.</div>';
+  document.getElementById('repApplyBtn').disabled = !ok.length;
+}
+async function prestRepImport(files){
+  const reports = await Promise.all([...files].map(prestRepReadFile));
+  prestRepPlan = prestRepBuildPlan(reports);
+  prestRepRender();
+  document.getElementById('repModalBackdrop').classList.add('show');
+}
+async function prestRepApply(){
+  if(!prestRepPlan) return;
+  let n = 0;
+  document.querySelectorAll('#rep_list input[data-repi]:checked').forEach(cb=>{
+    const p = prestRepPlan[+cb.dataset.repi]; if(!p || !p.cred) return;
+    LINKS.allocs = LINKS.allocs.filter(a=>!(a.s==='prest' && a.c===p.cred.id));
+    p.M.picks.forEach((avail, id)=>{
+      LINKS.allocs.push({s:'prest', e:id, c:p.cred.id, v:avail/100});
+      LINKS.none = LINKS.none.filter(k=>k!=='prest:'+id);
+    });
+    n++;
+  });
+  document.getElementById('repModalBackdrop').classList.remove('show');
+  if(!n){ showToast('Nenhum relatório marcado.'); return; }
+  await persistLinks();
+  showToast(`${n} reembolso(s) conciliado(s) pelo relatório.`);
+  prestRepPlan = null;
+  refreshReconTabs();
+}
+function wirePrestRep(){
+  const $ = id=>document.getElementById(id);
+  $('prestRepBtn').addEventListener('click', ()=>$('prestRepFile').click());
+  $('prestRepFile').addEventListener('change', e=>{ if(e.target.files.length) prestRepImport(e.target.files); e.target.value = ''; });
+  $('repCancelBtn').addEventListener('click', ()=>$('repModalBackdrop').classList.remove('show'));
+  $('repApplyBtn').addEventListener('click', prestRepApply);
+  $('repModalBackdrop').addEventListener('click', e=>{ if(e.target.id==='repModalBackdrop') $('repModalBackdrop').classList.remove('show'); });
 }
 
 /* ============ Boot ============ */
