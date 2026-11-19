@@ -624,6 +624,18 @@ footer button{margin-left:6px;}
 .bm-split{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:6px;}
 .bm-split .field{margin:0;}
 
+/* conciliação por crédito e painel de pagamento */
+.bon-cr{grid-template-columns:86px minmax(200px,1fr) 118px 70px 118px 110px 120px 46px;}
+.bon-cr.total{background:var(--surface-2);font-weight:700;cursor:default;}
+.bon-bp{grid-template-columns:30px minmax(220px,1.4fr) 92px 110px 110px 190px 120px;}
+.bon-bp.grp{background:var(--surface-2);font-weight:600;}
+.bon-bp.sel{background:var(--gold-soft);}
+.bon-bp input[type=checkbox]{width:auto;}
+.bon-bp input.bpv{width:104px;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 6px;font-size:12px;text-align:right;}
+.bon-bp input.bpv:disabled{opacity:0.4;}
+.bp-box{padding:12px 14px;margin-bottom:12px;border:1px solid var(--border);border-radius:10px;background:var(--surface-2);}
+.bp-bar{position:sticky;bottom:0;display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-top:12px;padding:12px 16px;background:var(--surface-2);border:1px solid var(--gold);border-radius:10px;font-size:13px;z-index:4;}
+
 .rep-card{padding:10px 12px;margin-bottom:8px;border:1px solid var(--border);border-radius:10px;font-size:12.5px;line-height:1.6;background:var(--surface-2);}
 .rep-card.ok{border-left:3px solid var(--income);} .rep-card.warn{border-left:3px solid var(--gold);} .rep-card.bad{border-left:3px solid var(--expense);} .rep-card.off{opacity:0.6;}
 </style>
@@ -1057,7 +1069,9 @@ footer button{margin-left:6px;}
         <div class="tabs" id="bonViewTabs" style="margin-bottom:12px;">
           <button class="subtab-btn active" data-bonview="plan">Planilha</button>
           <button class="subtab-btn" data-bonview="contr">Resumo</button>
-          <button class="subtab-btn" data-bonview="conc">Pagamentos × Salário</button>
+          <button class="subtab-btn" data-bonview="cred">Conciliação com o salário</button>
+          <button class="subtab-btn" data-bonview="painel">Registrar pagamento</button>
+          <button class="subtab-btn" data-bonview="conc">Por mês</button>
           <button class="subtab-btn" data-bonview="prev">A receber</button>
         </div>
 
@@ -1127,6 +1141,54 @@ footer button{margin-left:6px;}
             </div>
             <div class="import-hint" style="margin-top:10px;">Visão resumida. Clique na linha para ver o detalhe; ✏️ edita o contrato.</div>
           </div>
+        </div>
+
+        <div id="bonViewCred" style="display:none;">
+          <div class="import-hint" style="margin-bottom:12px;">Cada crédito de <b>Bônus</b> lançado no app (junto com o salário; valor bruto, antes do IRRF) é ligado às parcelas da coluna <b>Pago</b> da planilha que o compõem — primeiro pelo vínculo manual, depois pelo mesmo mês (combinação de parcelas que soma o crédito) e por mês próximo. Clique na linha para ver as parcelas; 🔗 abre o painel para escolher contratos e parcelas. 13º, média de bônus e PPR ficam fora (marque "mostrar ignorados" para ver e considerar).</div>
+          <div class="ledger-toolbar">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              <select id="bc_year" style="min-width:150px;"><option value="all">Todos os anos</option></select>
+              <select id="bc_st" style="min-width:170px;"><option value="all">Todas as situações</option><option value="dif">Só com diferença</option><option value="conc">Conciliados</option><option value="soapp">Sem parcela na planilha</option></select>
+              <label class="chk"><input type="checkbox" id="bc_ign"> Mostrar ignorados (13º / média / PPR)</label>
+              <button class="btn-secondary" id="bcExportBtn">Exportar CSV</button>
+            </div>
+            <div class="ledger-count" id="bcCount">—</div>
+          </div>
+          <div class="ledger" style="overflow-x:auto;">
+            <div style="min-width:900px;">
+              <div class="ledger-head rb-head bon-cr"><div>Data</div><div>Crédito no app</div><div style="text-align:right;">Valor</div><div style="text-align:center;">Parcelas</div><div style="text-align:right;">Soma da planilha</div><div style="text-align:right;">Diferença</div><div>Situação</div><div></div></div>
+              <div id="bcBody"></div>
+              <div id="bcFoot"></div>
+            </div>
+          </div>
+          <div id="bcOrphan"></div>
+        </div>
+
+        <div id="bonViewPanel" style="display:none;">
+          <div class="import-hint" style="margin-bottom:12px;">Quando um bônus cai junto com o salário: escolha o <b>crédito</b>, marque os <b>contratos e parcelas</b> que ele pagou (o valor a registrar vem do previsto e pode ser ajustado) e clique em registrar. O app grava a parcela como <b>paga no mês do crédito</b> e a vincula a ele. <b>Sugerir</b> procura a combinação de parcelas em aberto que soma o valor do crédito.</div>
+          <div class="bp-box">
+            <div class="field" style="margin:0;"><label>Crédito de bônus no app</label><select id="bp_credit"></select></div>
+            <div id="bp_manual" style="display:none;gap:10px;margin-top:8px;"><div class="field" style="margin:0;"><label>Mês do pagamento</label><input type="month" id="bp_month"></div><div class="field" style="margin:0;"><label>Valor (R$)</label><input type="number" step="0.01" id="bp_amount"></div></div>
+            <div id="bp_info" style="margin-top:8px;font-size:12.5px;line-height:1.6;"></div>
+          </div>
+          <div class="ledger-toolbar">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              <select id="bp_filter" style="min-width:210px;"><option value="pend">Parcelas em aberto</option><option value="late">Só vencidas</option><option value="free">Pagas na planilha sem crédito</option><option value="all">Todas</option></select>
+              <label class="chk"><input type="checkbox" id="bp_upto"> Só previstas até o mês do crédito</label>
+              <input type="text" id="bp_search" placeholder="buscar hotel…" style="min-width:180px;">
+              <button class="btn-secondary" id="bpSugBtn">Sugerir combinação</button>
+              <button class="btn-secondary" id="bpClearBtn">Limpar seleção</button>
+            </div>
+            <div class="ledger-count" id="bpCount">—</div>
+          </div>
+          <div id="bpSugMsg" class="bon-sug" style="display:none;"></div>
+          <div class="ledger" style="overflow-x:auto;">
+            <div style="min-width:820px;">
+              <div class="ledger-head rb-head bon-bp"><div></div><div>Contrato / parcela</div><div>Mês previsto</div><div style="text-align:right;">Previsto</div><div style="text-align:right;">Pago (planilha)</div><div>Situação</div><div>Valor a registrar</div></div>
+              <div id="bpBody"></div>
+            </div>
+          </div>
+          <div class="bp-bar"><div id="bpSum"></div><button class="btn-primary" id="bpApplyBtn" disabled>Registrar pagamento e vincular ao crédito</button></div>
         </div>
 
         <div id="bonViewConc" style="display:none;">
@@ -5214,8 +5276,8 @@ const BON_ST = {
 };
 function bonBadge(k){ const s = BON_ST[k]||{l:k,cls:''}; return `<span class="rb-badge ${s.cls}">${s.l}</span>`; }
 
-let BON = { contracts:[], recv:{}, appIgn:[], appInc:[], appMon:{}, meta:{} };
-let bonF = { view:'plan', st:'all', year:'all', search:'', cyear:'all', onlyDif:false, onlyLate:false, newest:false };
+let BON = { contracts:[], recv:{}, link:{}, appIgn:[], appInc:[], appMon:{}, meta:{} };
+let bonF = { view:'plan', st:'all', year:'all', search:'', cyear:'all', onlyDif:false, onlyLate:false, newest:false, cy:'all', cst:'all', cign:false };
 const bonOpen = new Set(), bonMOpen = new Set();
 let bonCache = null;
 // Carga inicial: contratos da planilha "Acompanhamento Bonus" (19/11/2026). Só é usada enquanto não existe
@@ -5225,9 +5287,9 @@ const BON_SEED = [{"id":"grand mercure belém|2016-06","hotel":"Grand Mercure Be
 async function loadBonus(){
   try{
     const d = await storageGetJSON('bonus_v1');
-    if(d) BON = { contracts:d.contracts||[], recv:d.recv||{}, appIgn:d.appIgn||[], appInc:d.appInc||[], appMon:d.appMon||{}, meta:d.meta||{} };
+    if(d) BON = { contracts:d.contracts||[], recv:d.recv||{}, link:d.link||{}, appIgn:d.appIgn||[], appInc:d.appInc||[], appMon:d.appMon||{}, meta:d.meta||{} };
     else if(BON_SEED.length){
-      BON = { contracts:JSON.parse(JSON.stringify(BON_SEED)), recv:{}, appIgn:[], appInc:[], appMon:{},
+      BON = { contracts:JSON.parse(JSON.stringify(BON_SEED)), recv:{}, link:{}, appIgn:[], appInc:[], appMon:{},
               meta:{file:'Acompanhamento Bonus Romulo.xlsx', at:'2026-11-19T12:00:00.000Z', n:BON_SEED.length, seed:true} };
       persistBonus();   // grava em segundo plano; a partir daqui os dados passam a viver no Firestore
     }
@@ -5338,6 +5400,7 @@ function bonImportFile(file){
       if(BON.contracts.length && !confirm(`Importar ${n} contratos da planilha "${file.name}"?\n\nIsso substitui os contratos atuais (${BON.contracts.length}), inclusive edições manuais feitas nos contratos. Os ajustes de "mês recebido" são mantidos quando o contrato continua existindo.`)) return;
       const ids = new Set(res.contracts.map(c=>c.id));
       Object.keys(BON.recv).forEach(k=>{ if(!ids.has(k.split(':')[0])) delete BON.recv[k]; });
+      Object.keys(BON.link).forEach(k=>{ if(!ids.has(k.split(':')[0])) delete BON.link[k]; });
       BON.contracts = res.contracts;
       BON.meta = {file:file.name, at:new Date().toISOString(), n};
       persistBonus().then(ok=>{ if(ok) showToast(`${n} contratos importados.` + (res.warn.length ? ` (${res.warn.length} avisos no console)` : '')); });
@@ -5354,24 +5417,8 @@ function bonRecon(){
   const nowM = bonNowM();
   const map = new Map();
   const get = m=>{ if(!map.has(m)) map.set(m, {m, plan:[], app:[], appIgn:[], planC:0, appC:0}); return map.get(m); };
-  BON.contracts.forEach(c=>{
-    const add = (slot, label, p)=>{
-      if(!p || !p.m || p.v==null || p.v===0) return;
-      const key = c.id+':'+slot, month = BON.recv[key] || p.m;
-      get(month).plan.push({key, cid:c.id, hotel:c.hotel, label, orig:p.m, month, c:toC(p.v), moved:month!==p.m});
-    };
-    (c.paid||[]).forEach((p,i)=>add(i, (i+1)+'ª parcela', p));
-    if(c.extra && c.extra.cash) add('x', 'Adicional'+(c.extra.j?' – '+c.extra.j:''), c.extra);
-  });
-  const ign = new Set(BON.appIgn), inc = new Set(BON.appInc);
-  STATE.tx.forEach(t=>{
-    if(!(t.cat==='Bônus' || (t.cat==='Salário' && RX_BON_APP.test(t.desc||'')))) return;
-    const natural = t.date.slice(0,7), month = BON.appMon[t.id] || natural;
-    const byDefault = RX_BON_EXCL.test(t.desc||'');
-    const ignored = ign.has(t.id) || (byDefault && !inc.has(t.id));
-    const it = {id:t.id, date:t.date, desc:t.desc||'', c:toC(t.dc==='C' ? t.val : -t.val), orig:natural, month, moved:month!==natural, ignored, byDefault, acc:t.acc};
-    (ignored ? get(month).appIgn : get(month).app).push(it);
-  });
+  bonItems().forEach(it=>get(it.month).plan.push(it));
+  bonCredits().forEach(it=>(it.ignored ? get(it.month).appIgn : get(it.month).app).push(it));
   const months = [...map.values()].sort((a,b)=>a.m.localeCompare(b.m));
   let cum = 0;
   months.forEach(x=>{
@@ -5429,25 +5476,25 @@ function bonSuggest(months){
 
 /* ---------- atualização / renderização ---------- */
 function bonRefresh(){
-  bonCache = { rec: bonRecon() };
+  bonCache = { rec: bonRecon(), M: bonMatch() };
   bonCache.sug = bonSuggest(bonCache.rec.months);
   bonRenderSummary();
   document.querySelectorAll('#bonViewTabs .subtab-btn').forEach(b=>b.classList.toggle('active', b.dataset.bonview===bonF.view));
-  const isC = bonF.view==='plan' || bonF.view==='contr';
-  document.getElementById('bonViewContr').style.display = isC ? 'block' : 'none';
-  document.getElementById('bonViewConc').style.display = bonF.view==='conc' ? 'block' : 'none';
-  document.getElementById('bonViewPrev').style.display = bonF.view==='prev' ? 'block' : 'none';
-  document.getElementById('bonPlanWrap').style.display = bonF.view==='plan' ? 'block' : 'none';
-  document.getElementById('bonCompactWrap').style.display = bonF.view==='contr' ? 'block' : 'none';
+  const v = bonF.view, isC = v==='plan' || v==='contr';
+  const show = (id, on)=>{ document.getElementById(id).style.display = on ? 'block' : 'none'; };
+  show('bonViewContr', isC); show('bonViewCred', v==='cred'); show('bonViewPanel', v==='painel'); show('bonViewConc', v==='conc'); show('bonViewPrev', v==='prev');
+  show('bonPlanWrap', v==='plan'); show('bonCompactWrap', v==='contr');
   if(isC) bonFillFilters();
-  if(bonF.view==='plan') bonRenderPlan();
-  else if(bonF.view==='contr') bonRenderContr();
-  else if(bonF.view==='conc') bonRenderConc();
+  if(v==='plan') bonRenderPlan();
+  else if(v==='contr') bonRenderContr();
+  else if(v==='cred') bonRenderCred();
+  else if(v==='painel') bonRenderPanel();
+  else if(v==='conc') bonRenderConc();
   else bonRenderPrev();
 }
 // recálculo leve após edição direta numa célula (mantém o foco; não redesenha a tabela)
 function bonLightRefresh(){
-  bonCache = { rec: bonRecon() };
+  bonCache = { rec: bonRecon(), M: bonMatch() };
   bonCache.sug = bonSuggest(bonCache.rec.months);
   bonRenderSummary();
   bonPlanUpdate();
@@ -5464,13 +5511,13 @@ function bonRenderSummary(){
     if(k.st==='excesso') maior += -k.saldo;
     if(k.st==='atraso'){ nAt++; k.slots.forEach(s=>{ if(s.st==='vencida') atraso += toC(s.prev.v); }); }
   });
-  const R = bonCache.rec;
+  const M = bonCache.M, nOk = M.rows.filter(r=>r.st==='conc').length, nBad = M.rows.filter(r=>r.st==='dif'||r.st==='soapp').length;
   document.getElementById('bonSummaryRow').innerHTML = `
     <div class="acc-card"><div class="name">Devido (contratos ativos)</div><div class="bal mono">${fmtC(dev)}</div><div class="meta">${BON.contracts.filter(c=>!c.cancel).length} contratos${BON.meta&&BON.meta.at?` · planilha de ${dBR(BON.meta.at.slice(0,10))}`:''}</div></div>
     <div class="acc-card" style="--acc-color:var(--income)"><div class="name">Recebido (parcelas + adicionais)</div><div class="bal mono">${fmtC(pag+extra)}</div><div class="meta">${fmtC(pag)} em parcelas + ${fmtC(extra)} em adicionais / correções${maior>0?` · pago a maior ${fmtC(maior)}`:''}</div></div>
     <div class="acc-card" style="--acc-color:#7DA3FF"><div class="name">Saldo a receber</div><div class="bal mono">${fmtC(saldo)}</div><div class="meta">parcelas previstas e ainda não pagas</div></div>
     <div class="acc-card" style="--acc-color:var(--expense)"><div class="name">Em atraso (vencido sem pagamento)</div><div class="bal mono ${atraso?'neg':''}">${fmtC(atraso)}</div><div class="meta">${nAt} contratos com parcela vencida</div></div>
-    <div class="acc-card" style="--acc-color:#C792EA"><div class="name">Conciliação com o app</div><div class="bal mono ${Math.abs(R.cum)>BON_TOL_C?'neg':''}">${fmtC(R.cum)}</div><div class="meta">diferença acumulada (app − planilha) · ${R.nDif} meses com diferença</div></div>`;
+    <div class="acc-card" style="--acc-color:#C792EA"><div class="name">Conciliação com o salário</div><div class="bal mono ${nBad?'neg':''}">${nOk} de ${M.rows.length}</div><div class="meta">créditos de bônus conciliados · ${nBad} com diferença · ${M.orphan.length} parcelas pagas sem crédito (${fmtC(M.orphan.reduce((q,i)=>q+i.c,0))})</div></div>`;
 }
 
 /* ----- Contratos ----- */
@@ -5925,6 +5972,360 @@ function wireBonEvents(){
   $('bmDeleteBtn').addEventListener('click', deleteBonContract);
   $('bm_split').addEventListener('click', e=>{ if(e.target.closest('#bmCalcBtn')) bonModalCalc(); });
   $('bonModalBackdrop').addEventListener('click', e=>{ if(e.target.id==='bonModalBackdrop') closeBonEdit(); });
+  wireBonEvents2();
+}
+
+/* ============ Bônus: conciliação por crédito + painel de seleção de parcelas ============
+   Cada crédito de bônus lançado no app (categoria Bônus, ou Salário com "bônus" na descrição; valor bruto)
+   é ligado às parcelas da coluna "Pago" da planilha que o compõem. Ordem: vínculo manual → mesmo mês
+   (combinação de parcelas que soma o crédito) → mês próximo (±3, até 4 parcelas). O painel "Registrar
+   pagamento" faz o caminho inverso: escolher o crédito, marcar contratos/parcelas e gravar o pago + vínculo. */
+function bonItems(){            // pagamentos registrados na coluna Pago (e adicionais recebidos em caixa)
+  const out = [];
+  BON.contracts.forEach(c=>{
+    const add = (slot, label, p)=>{
+      if(!p || !p.m || p.v==null || p.v===0) return;
+      const key = c.id+':'+slot, month = BON.recv[key] || p.m;
+      out.push({key, cid:c.id, hotel:c.hotel, label, orig:p.m, month, c:toC(p.v), moved:month!==p.m});
+    };
+    (c.paid||[]).forEach((p,i)=>add(i, (i+1)+'ª parcela', p));
+    if(c.extra && c.extra.cash) add('x', 'Adicional'+(c.extra.j?' – '+c.extra.j:''), c.extra);
+  });
+  return out;
+}
+function bonCredits(){          // créditos de bônus lançados no app
+  const ign = new Set(BON.appIgn), inc = new Set(BON.appInc), out = [];
+  STATE.tx.forEach(t=>{
+    if(!(t.cat==='Bônus' || (t.cat==='Salário' && RX_BON_APP.test(t.desc||'')))) return;
+    const natural = t.date.slice(0,7), month = BON.appMon[t.id] || natural;
+    const byDefault = RX_BON_EXCL.test(t.desc||'');
+    const ignored = ign.has(t.id) || (byDefault && !inc.has(t.id));
+    out.push({id:t.id, date:t.date, desc:t.desc||'', c:toC(t.dc==='C' ? t.val : -t.val), orig:natural, month, moved:month!==natural, ignored, byDefault, acc:t.acc});
+  });
+  return out;
+}
+const bonTolFor = n=>BON_TOL_C + 30*Math.max(n-1, 0);   // parcelas da planilha são arredondadas: tolera centavos a mais por parcela
+
+// subconjunto de `pool` cuja soma é `target` (±tolerância); menor diferença, depois menos parcelas
+function bonSubset(pool, target, maxK){
+  const n = pool.length; if(!n || target<=0) return null;
+  let best = null;
+  const take = (idx)=>{
+    const s = idx.reduce((q,i)=>q+pool[i].c, 0), d = Math.abs(s-target);
+    if(d>bonTolFor(idx.length)) return;
+    if(!best || d<best.d || (d===best.d && idx.length<best.idx.length)) best = {idx:idx.slice(), d, s};
+  };
+  if(n<=16){
+    const sums = new Float64Array(1<<n), cnt = new Uint8Array(1<<n);
+    for(let m=1; m<(1<<n); m++){
+      const lb = m & -m, i = 31-Math.clz32(lb), p = m & (m-1);
+      sums[m] = sums[p] + pool[i].c; cnt[m] = cnt[p]+1;
+      if(maxK && cnt[m]>maxK) continue;
+      const d = Math.abs(sums[m]-target);
+      if(d>bonTolFor(cnt[m])) continue;
+      if(!best || d<best.d || (d===best.d && cnt[m]<best.idx.length)){
+        const idx = []; for(let i2=0;i2<n;i2++) if(m>>i2&1) idx.push(i2);
+        best = {idx, d, s:sums[m]};
+      }
+    }
+  } else {
+    take(pool.map((_,i)=>i));
+    for(let i=0;i<n;i++){ take([i]); for(let j=i+1;j<n;j++){ take([i,j]); if(n<=40) for(let k=j+1;k<n;k++) take([i,j,k]); } }
+  }
+  return best;
+}
+
+function bonMatch(){
+  const items = bonItems(), credits = bonCredits(), nowDay = todayISO();
+  const live = credits.filter(c=>!c.ignored && c.c>0);
+  const crById = new Map(live.map(c=>[c.id, c]));
+  const rows = new Map(live.map(c=>[c.id, {cr:c, items:[], kinds:{}}]));
+  const asg = new Map();
+  const give = (it, cr, kind)=>{ asg.set(it.key, {crId:cr.id, kind}); rows.get(cr.id).items.push(it); };
+  const blocked = it=>BON.link[it.key]===0;
+  const freeItems = ()=>items.filter(it=>!asg.has(it.key) && !blocked(it));
+  items.forEach(it=>{ const l = BON.link[it.key]; if(l && crById.has(l)) give(it, crById.get(l), 'manual'); });
+  const byMonth = new Map();
+  live.forEach(c=>{ if(!byMonth.has(c.month)) byMonth.set(c.month, []); byMonth.get(c.month).push(c); });
+  // mesmo mês
+  byMonth.forEach((crs, m)=>{
+    crs.slice().sort((a,b)=>b.c-a.c).forEach(cr=>{
+      if(rows.get(cr.id).items.length) return;
+      const pool = freeItems().filter(it=>it.month===m); if(!pool.length) return;
+      const sub = bonSubset(pool, cr.c);
+      if(sub) sub.idx.forEach(i=>give(pool[i], cr, 'mes'));
+    });
+    const empty = crs.filter(c=>!rows.get(c.id).items.length);
+    if(empty.length===1){
+      // único crédito do mês sem parcelas: liga o que sobrou do mês se for plausível (planilha não passa muito do crédito)
+      const pool = freeItems().filter(it=>it.month===m), tot = pool.reduce((q,i)=>q+i.c,0);
+      if(pool.length && tot<=empty[0].c*1.15+BON_TOL_C) pool.forEach(it=>give(it, empty[0], 'mes'));
+    }
+  });
+  // mês próximo (±3), combinação exata de até 4 parcelas
+  live.filter(c=>!rows.get(c.id).items.length).sort((a,b)=>b.c-a.c).forEach(cr=>{
+    const pool = freeItems().filter(it=>Math.abs(bmDiff(it.month, cr.month))<=3 && it.c<=cr.c+BON_TOL_C)
+      .sort((a,b)=>Math.abs(bmDiff(a.month,cr.month))-Math.abs(bmDiff(b.month,cr.month))||b.c-a.c).slice(0,16);
+    const sub = bonSubset(pool, cr.c, 4);
+    if(sub && sub.d<=BON_TOL_C) sub.idx.forEach(i=>give(pool[i], cr, 'outro'));
+  });
+  const list = [...rows.values()].map(r=>{
+    r.planC = r.items.reduce((s,i)=>s+i.c, 0); r.d = r.cr.c - r.planC;
+    const tol = bonTolFor(r.items.length);
+    r.st = r.cr.date>nowDay && !r.items.length ? 'aguard' : !r.items.length ? 'soapp' : Math.abs(r.d)<=tol ? 'conc' : 'dif';
+    return r;
+  }).sort((a,b)=>b.cr.date.localeCompare(a.cr.date) || b.cr.id-a.cr.id);
+  const orphan = items.filter(it=>!asg.has(it.key)).sort((a,b)=>b.month.localeCompare(a.month));
+  return {rows:list, ignored:credits.filter(c=>c.ignored), orphan, asg, items};
+}
+
+/* ----- tela: conciliação por crédito ----- */
+function bonRenderCred(){
+  const M = bonCache.M;
+  const ys = document.getElementById('bc_year');
+  const years = [...new Set(M.rows.map(r=>r.cr.date.slice(0,4)))];
+  ys.innerHTML = '<option value="all">Todos os anos</option>' + years.map(y=>`<option value="${y}">${y}</option>`).join('');
+  ys.value = years.includes(bonF.cy) ? bonF.cy : 'all'; bonF.cy = ys.value;
+  document.getElementById('bc_st').value = bonF.cst;
+  let rows = M.rows.filter(r=>(bonF.cy==='all' || r.cr.date.startsWith(bonF.cy)) && (bonF.cst==='all' || (bonF.cst==='dif' ? r.st!=='conc' && r.st!=='aguard' : r.st===bonF.cst)));
+  const ign = bonF.cign ? M.ignored.filter(c=>bonF.cy==='all' || c.date.startsWith(bonF.cy)) : [];
+  const orph = M.orphan.filter(i=>bonF.cy==='all' || i.month.startsWith(bonF.cy));
+  document.getElementById('bcCount').textContent = `${rows.length} créditos · ${orph.length} parcelas pagas sem crédito`;
+  const kindTxt = {manual:'vínculo manual', mes:'mesmo mês', outro:'mês próximo'};
+  const det = r=>`<div class="bon-detail">
+      ${r.items.length ? r.items.slice().sort((a,b)=>b.c-a.c).map(it=>`<div class="bon-it ${it.moved?'mv':''}"><span>${escH(it.hotel)} · ${escH(it.label)} <span class="rb-note">pago ${bmLbl(it.orig)}${it.moved?` (recebido em ${bmLbl(it.month)})`:''} · ${kindTxt[bonCache.M.asg.get(it.key).kind]}</span></span><b class="mono">${fmtC(it.c)}</b><span class="bon-ctl"><button class="btn-secondary mini" data-bunlink="${escH(it.key)}" title="Desfazer este vínculo">Desvincular</button></span></div>`).join('') : '<div class="rb-note">Nenhuma parcela da planilha ligada a este crédito. Use 🔗 para selecionar contratos e parcelas.</div>'}
+      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;"><button class="btn-secondary mini" data-bpcred="${r.cr.id}">🔗 Selecionar parcelas</button><button class="btn-secondary mini" data-appign="${r.cr.id}">Ignorar (não é bônus de contrato)</button></div>
+    </div>`;
+  const body = rows.map(r=>{
+    const open = bonOpen.has('c'+r.cr.id);
+    return `<div class="rb-row bon-cr" data-cropen="${r.cr.id}" style="cursor:pointer;">
+      <div class="date">${dBR(r.cr.date)}</div>
+      <div class="desc" title="${escH(r.cr.desc)}">${escH(r.cr.desc)}${r.cr.moved?` <span class="rb-note">(considerado em ${bmLbl(r.cr.month)})</span>`:''}</div>
+      <div class="val C">${fmtC(r.cr.c)}</div>
+      <div class="ctr" style="text-align:center;">${r.items.length||'—'}</div>
+      <div class="val">${r.items.length?fmtC(r.planC):'—'}</div>
+      <div class="val ${r.st==='conc'||r.st==='aguard'?'':'neg'}">${Math.abs(r.d)<=BON_TOL_C&&r.items.length?'—':fmtC(r.d)}</div>
+      <div>${bonBadge(r.st==='soapp'?'soapp':r.st)}</div>
+      <div class="rb-act"><button class="btn-icon" data-bpcred="${r.cr.id}" title="Selecionar contratos e parcelas deste crédito">🔗</button></div>
+    </div>${open?det(r):''}`;
+  }).join('') + ign.map(c=>`<div class="rb-row bon-cr" style="opacity:0.55;"><div class="date">${dBR(c.date)}</div><div class="desc" title="${escH(c.desc)}">${escH(c.desc)} <span class="rb-note">(${c.byDefault&&!BON.appIgn.includes(c.id)?'13º / média / PPR':'ignorado'} — fora da conciliação)</span></div><div class="val C">${fmtC(c.c)}</div><div></div><div></div><div></div><div></div><div class="rb-act"><button class="btn-secondary mini" data-appinc="${c.id}">Considerar</button></div></div>`).join('');
+  document.getElementById('bcBody').innerHTML = body || '<div class="empty-state">Nenhum crédito com esse filtro.</div>';
+  const ta = rows.reduce((s,r)=>s+r.cr.c,0), tp = rows.reduce((s,r)=>s+r.planC,0);
+  document.getElementById('bcFoot').innerHTML = `<div class="rb-row bon-cr total"><div>Total</div><div></div><div class="val">${fmtC(ta)}</div><div></div><div class="val">${fmtC(tp)}</div><div class="val ${Math.abs(ta-tp)>BON_TOL_C?'neg':''}">${fmtC(ta-tp)}</div><div></div><div></div></div>`;
+  const ot = orph.reduce((s,i)=>s+i.c,0);
+  document.getElementById('bcOrphan').innerHTML = orph.length ? `<div class="bon-h" style="margin:18px 0 6px;">Pagamentos da coluna Pago sem crédito de bônus no app — ${orph.length} parcelas · ${fmtC(ot)}</div><div class="ledger" style="padding:4px 14px;">`
+    + orph.map(i=>`<div class="bon-it ${i.moved?'mv':''}"><span>${bmLbl(i.month)} · ${escH(i.hotel)} · ${escH(i.label)}${i.moved?` <span class="rb-note">(planilha: ${bmLbl(i.orig)})</span>`:''}</span><b class="mono">${fmtC(i.c)}</b><span class="bon-ctl"><button class="btn-secondary mini" data-bpitem="${escH(i.key)}" title="Escolher o crédito do app que pagou esta parcela">🔗 Vincular a crédito</button></span></div>`).join('') + '</div>'
+    + '<div class="import-hint" style="margin-top:6px;">São parcelas que a planilha marca como pagas, mas para as quais não há crédito de Bônus no app (ou o valor não fecha). Pode ser pagamento ainda não lançado, lançado em outra categoria, ou mês diferente.</div>' : '';
+}
+
+/* ----- painel: registrar pagamento (selecionar contratos e parcelas) ----- */
+let bonP = { credit:'', month:'', amount:'', filter:'pend', search:'', upto:true, sel:new Map() };
+function bonAddMonths(m, n){ const [y,mo] = m.split('-').map(Number), t = (y*12+mo-1)+n; return Math.floor(t/12)+'-'+String(t%12+1).padStart(2,'0'); }
+function bonSlotRows(){
+  const M = bonCache.M, nowM = bonNowM(), out = [];
+  BON.contracts.forEach(c=>{
+    if(c.cancel) return;
+    const k = bonCalc(c, nowM);
+    for(let i=0;i<3;i++){
+      const pv = c.prev&&c.prev[i], pd = c.paid&&c.paid[i];
+      const prevC = pv&&pv.v ? toC(pv.v) : 0, paidC = pd&&pd.v ? toC(pd.v) : 0;
+      if(!prevC && !paidC) continue;
+      const key = c.id+':'+i, a = M.asg.get(key);
+      out.push({key, c, i, prevM:pv&&pv.m||'', prevC, paidM:pd&&pd.m||'', paidC, paid:!!paidC,
+        pend: !paidC && (k.slots[i].st==='vencida' || k.slots[i].st==='prevista'), late: k.slots[i].st==='vencida',
+        crId:a?a.crId:null, kind:a?a.kind:null});
+    }
+  });
+  return out;
+}
+function bonPanelCredit(){
+  if(!bonP.credit) return null;
+  if(bonP.credit==='manual') return {manual:true, month:bonP.month, c:toC(parseFloat(bonP.amount)||0), date:bonP.month?bonP.month+'-01':'', id:null, desc:'Pagamento informado'};
+  const r = bonCache.M.rows.find(x=>x.cr.id===+bonP.credit);
+  return r ? {...r.cr, month:r.cr.month, manual:false, assigned:r.items} : null;
+}
+function bonRenderPanel(){
+  const M = bonCache.M, cr = bonPanelCredit();
+  // seletor de crédito
+  const sel = document.getElementById('bp_credit');
+  const opts = M.rows.map(r=>`<option value="${r.cr.id}">${r.st==='conc'?'✔':'●'} ${dBR(r.cr.date)} · ${escH(r.cr.desc.slice(0,44))} · ${fmtC(r.cr.c)}${r.items.length?' (parcelas: '+fmtC(r.planC)+')':''}</option>`).join('');
+  sel.innerHTML = '<option value="">— escolha o crédito de bônus do app —</option>' + opts + '<option value="manual">Outro pagamento (informar mês e valor)</option>';
+  sel.value = bonP.credit;
+  document.getElementById('bp_manual').style.display = bonP.credit==='manual' ? 'flex' : 'none';
+  document.getElementById('bp_month').value = bonP.month; document.getElementById('bp_amount').value = bonP.amount;
+  document.getElementById('bp_filter').value = bonP.filter; document.getElementById('bp_search').value = bonP.search;
+  document.getElementById('bp_upto').checked = bonP.upto;
+  const info = document.getElementById('bp_info');
+  if(!cr){ info.innerHTML = '<span class="rb-note">Escolha um crédito: o app mostra as parcelas em aberto para você marcar quais ele pagou. ✔ = conciliado, ● = com diferença.</span>'; }
+  else if(cr.manual){ info.innerHTML = `Pagamento informado${cr.month?' · mês '+bmLbl(cr.month):''}${cr.c?' · '+fmtC(cr.c):''}. As parcelas marcadas serão gravadas como pagas nesse mês (sem vínculo com um crédito do app).`; }
+  else { const asg = cr.assigned.reduce((s,i)=>s+i.c,0); info.innerHTML = `<b>${dBR(cr.date)}</b> · ${escH(cr.desc)} · crédito <b class="mono">${fmtC(cr.c)}</b>${cr.moved?` · considerado em ${bmLbl(cr.month)}`:''}<br>Já ligado a ${cr.assigned.length} parcela(s): <b class="mono">${fmtC(asg)}</b>${cr.assigned.length?' ('+cr.assigned.slice(0,4).map(i=>escH(i.hotel)+' '+(i.label[0]+'ª')).join(', ')+(cr.assigned.length>4?'…':'')+')':''}`; }
+  bonRenderPanelRows(); bpUpdateSum();
+}
+function bonPanelVisible(){
+  const cr = bonPanelCredit(), nowM = bonNowM();
+  const q = bonP.search.trim().toLowerCase();
+  const limit = bonP.upto && cr && cr.month ? cr.month : null;
+  return bonSlotRows().filter(r=>{
+    if(bonP.filter==='pend' && !r.pend) return false;
+    if(bonP.filter==='late' && !(r.pend && r.late)) return false;
+    if(bonP.filter==='free' && !(r.paid && !r.crId)) return false;
+    if(q && !r.c.hotel.toLowerCase().includes(q)) return false;
+    if(limit && r.pend && r.prevM && r.prevM>limit) return false;
+    return true;
+  });
+}
+function bonRenderPanelRows(){
+  const cr = bonPanelCredit();
+  const rows = bonPanelVisible();
+  const groups = new Map();
+  rows.forEach(r=>{ if(!groups.has(r.c.id)) groups.set(r.c.id, []); groups.get(r.c.id).push(r); });
+  const ord = [...groups.values()].sort((a,b)=>(a[0].prevM||'9').localeCompare(b[0].prevM||'9') || a[0].c.hotel.localeCompare(b[0].c.hotel));
+  document.getElementById('bpCount').textContent = `${rows.length} parcelas · ${ord.length} contratos · ${fmtC(rows.reduce((s,r)=>s+(r.paid?r.paidC:r.prevC),0))}`;
+  const stTxt = r=> r.paid ? `<span class="rb-badge st-ok">paga ${bmLbl(r.paidM)}</span>${r.crId?` <span class="rb-note">↔ ${dBR(bonCache.M.rows.find(x=>x.cr.id===r.crId).cr.date)}</span>`:' <span class="rb-note">sem crédito</span>'}` : r.late ? `<span class="rb-badge st-bad">vencida</span>` : '<span class="rb-badge st-wait">prevista</span>';
+  document.getElementById('bpBody').innerHTML = ord.map(g=>{
+    const c = g[0].c, selAll = g.every(r=>bonP.sel.has(r.key));
+    const tot = g.reduce((s,r)=>s+(r.paid?r.paidC:r.prevC),0);
+    return `<div class="rb-row bon-bp grp"><div><input type="checkbox" data-bpall="${escH(c.id)}" ${selAll?'checked':''} title="Marcar todas as parcelas visíveis deste contrato"></div><div class="rb-prest" title="${escH(c.hotel)}">${escH(c.hotel)} <span class="rb-note">assinatura ${bmLbl(c.sign)}</span></div><div></div><div></div><div class="val">${fmtC(tot)}</div><div></div><div></div></div>`
+      + g.map(r=>{
+        const on = bonP.sel.has(r.key), mine = cr && !cr.manual && r.crId===cr.id;
+        const v = on ? bonP.sel.get(r.key) : (r.paid ? r.paidC : r.prevC);
+        return `<div class="rb-row bon-bp ${on?'sel':''}"><div><input type="checkbox" data-bpk="${escH(r.key)}" ${on?'checked':''} ${mine?'disabled':''}></div><div class="date" style="padding-left:14px;">${r.i+1}ª parcela</div><div class="date">${bmLbl(r.prevM)}</div><div class="val">${fmtC(r.prevC)}</div><div class="val">${r.paid?fmtC(r.paidC):''}</div><div>${mine?'<span class="rb-badge st-ok">neste crédito</span>':stTxt(r)}</div><div>${r.paid?'':`<input type="number" step="0.01" class="bpv" data-bpv="${escH(r.key)}" value="${v/100}" ${on?'':'disabled'}>`}</div></div>`;
+      }).join('');
+  }).join('') || '<div class="empty-state">Nenhuma parcela com esse filtro.</div>';
+}
+function bpRowByKey(k){ return bonSlotRows().find(r=>r.key===k); }
+function bpSelTotal(){ let s = 0; bonP.sel.forEach(v=>{ s += v; }); return s; }
+function bpUpdateSum(){
+  const cr = bonPanelCredit(), el = document.getElementById('bpSum'), btn = document.getElementById('bpApplyBtn');
+  const n = bonP.sel.size, tot = bpSelTotal();
+  if(!cr){ el.innerHTML = n ? `${n} parcela(s) marcada(s): <b class="mono">${fmtC(tot)}</b> — escolha o crédito.` : ''; btn.disabled = true; return; }
+  const asg = cr.manual ? 0 : cr.assigned.filter(i=>!bonP.sel.has(i.key)).reduce((s,i)=>s+i.c,0);
+  const falta = cr.c - asg - tot;
+  el.innerHTML = `Marcadas: <b>${n}</b> · <b class="mono">${fmtC(tot)}</b>${cr.c?` · crédito ${fmtC(cr.c)}${asg?` − já ligado ${fmtC(asg)}`:''} · `:''}${cr.c?(Math.abs(falta)<=bonTolFor(n)?'<b style="color:var(--income);">fecha com o crédito ✔</b>':(falta>0?`faltam <b class="mono">${fmtC(falta)}</b>`:`excede em <b class="mono neg">${fmtC(-falta)}</b>`)):''}`;
+  btn.disabled = !n || (cr.manual && !cr.month);
+}
+function bpToggle(key, on){
+  const r = bpRowByKey(key); if(!r) return;
+  if(on) bonP.sel.set(key, r.paid ? r.paidC : r.prevC); else bonP.sel.delete(key);
+}
+// sugestão: combinação de parcelas em aberto que soma o que falta do crédito (meet-in-the-middle)
+function bonPanelSuggest(){
+  const cr = bonPanelCredit(); if(!cr || cr.manual){ showToast('Escolha um crédito do app.'); return; }
+  const asg = cr.assigned.reduce((s,i)=>s+i.c,0), target = cr.c - asg;
+  if(target<=BON_TOL_C){ showToast('Este crédito já está fechado.'); return; }
+  const lo = bonAddMonths(cr.month, -9);
+  let pool = bonSlotRows().filter(r=>r.pend && r.prevC && r.prevC<=target+BON_TOL_C && (!r.prevM || (r.prevM<=cr.month && r.prevM>=lo)))
+    .sort((a,b)=>Math.abs(bmDiff(a.prevM||cr.month, cr.month))-Math.abs(bmDiff(b.prevM||cr.month, cr.month))).slice(0,36);
+  const n = pool.length, h = n>>1, A = pool.slice(0,h), B = pool.slice(h);
+  const sums = arr=>{ const N = 1<<arr.length, s = new Float64Array(N); for(let m=1;m<N;m++){ const i = 31-Math.clz32(m&-m); s[m] = s[m&(m-1)] + arr[i].prevC; } return s; };
+  const SA = sums(A), SB = sums(B), idxB = Uint32Array.from({length:SB.length}, (_,i)=>i).sort((x,y)=>SB[x]-SB[y]);
+  const tol = BON_TOL_C, sols = []; let total = 0;
+  for(let ma=0; ma<SA.length && total<2000; ma++){
+    const lowv = target-tol-SA[ma], hiv = target+tol-SA[ma];
+    let l = 0, r = idxB.length; while(l<r){ const m = (l+r)>>1; if(SB[idxB[m]]<lowv) l = m+1; else r = m; }
+    for(let q=l; q<idxB.length && SB[idxB[q]]<=hiv && total<2000; q++){
+      const mb = idxB[q]; total++;
+      const cnt = bonBits(ma)+bonBits(mb);
+      if(cnt===0) continue;
+      if(sols.length<400) sols.push({ma, mb, cnt, d:Math.abs(SA[ma]+SB[mb]-target)});
+    }
+  }
+  if(!sols.length){ const m0 = document.getElementById('bpSugMsg'); m0.style.display = 'block'; m0.innerHTML = `Nenhuma combinação de parcelas em aberto soma ${fmtC(target)} (±R$ 1,00): o crédito inclui valores que não estão na planilha (ex.: ajustes, parcelas de outros contratos ou meses fora da janela de 9 meses).`; return; }
+  sols.sort((x,y)=>x.d-y.d || x.cnt-y.cnt);
+  const msg = document.getElementById('bpSugMsg');
+  msg.style.display = 'block';
+  if(total>12){
+    msg.innerHTML = `<b>Sem sugestão confiável:</b> existem ${total>=2000?'mais de 2000':total} combinações de parcelas em aberto que somam ${fmtC(target)} (±R$ 1,00); só pelo valor não dá para saber quais contratos foram pagos. Marque manualmente os contratos (veja a descrição do crédito e a data); o app mostra quanto falta.`;
+    return;
+  }
+  const best = sols[0], pick = [];
+  A.forEach((r,i)=>{ if(best.ma>>i&1) pick.push(r); }); B.forEach((r,i)=>{ if(best.mb>>i&1) pick.push(r); });
+  bonP.sel = new Map(pick.map(r=>[r.key, r.prevC]));
+  bonRenderPanelRows(); bpUpdateSum();
+  msg.innerHTML = `<b>Sugestão:</b> ${pick.length} parcela(s) somando ${fmtC(pick.reduce((s,r)=>s+r.prevC,0))}. ${total>1?`Há ${total} combinações possíveis — <b>confira</b> se os contratos fazem sentido (o app escolheu a de menor diferença e menos parcelas).`:'É a única combinação encontrada.'}`;
+}
+function bonBits(x){ let c = 0; while(x){ c += x&1; x >>>= 1; } return c; }
+async function bonPanelApply(){
+  const cr = bonPanelCredit(); if(!cr || !bonP.sel.size) return;
+  const month = cr.month; if(!month){ showToast('Informe o mês do pagamento.'); return; }
+  let nPaid = 0, nLink = 0;
+  for(const [key, v] of bonP.sel){
+    const r = bpRowByKey(key); if(!r) continue;
+    if(!r.paid){
+      const arr = r.c.paid || (r.c.paid = [null,null,null]);
+      arr[r.i] = {m:month, v:Math.round(v)/100}; nPaid++;
+    }
+    if(!cr.manual){ BON.link[key] = cr.id; nLink++; }
+  }
+  bonP.sel = new Map();
+  await persistBonus();
+  showToast(`${nPaid} parcela(s) marcada(s) como paga(s) em ${bmLbl(month)}; ${nLink} vinculada(s) ao crédito.`);
+  document.getElementById('bpSugMsg').style.display = 'none';
+  bonRefresh();
+}
+function bonOpenPanel(opts){
+  opts = opts || {};
+  bonF.view = 'painel';
+  bonP.sel = new Map(); bonP.filter = 'pend'; bonP.search = ''; bonP.upto = true;
+  if(opts.credit){ bonP.credit = String(opts.credit); const r = bonCache.M.rows.find(x=>x.cr.id===+opts.credit); bonP.month = r ? r.cr.month : ''; }
+  else if(!bonP.credit){ const r = bonCache.M.rows.find(x=>x.st!=='conc' && x.st!=='aguard'); bonP.credit = r ? String(r.cr.id) : ''; }
+  if(opts.item){ bonP.filter = 'free'; bonP.upto = false; setTimeout(()=>{ bonP.sel.set(opts.item, (bonItems().find(i=>i.key===opts.item)||{}).c||0); bonRenderPanelRows(); bpUpdateSum(); }, 0); }
+  document.getElementById('bpSugMsg').style.display = 'none';
+  bonRefresh();
+  document.getElementById('bonViewPanel').scrollIntoView({block:'start'});
+}
+
+function wireBonEvents2(){
+  const $ = id=>document.getElementById(id);
+  const save = async ()=>{ await persistBonus(); bonRefresh(); };
+  // conciliação por crédito
+  $('bc_year').addEventListener('change', e=>{ bonF.cy = e.target.value; bonRenderCred(); });
+  $('bc_st').addEventListener('change', e=>{ bonF.cst = e.target.value; bonRenderCred(); });
+  $('bc_ign').addEventListener('change', e=>{ bonF.cign = e.target.checked; bonRenderCred(); });
+  $('bcExportBtn').addEventListener('click', ()=>{
+    const M = bonCache.M;
+    downloadCSV('Bonus_conciliacao_creditos.csv', ['Data','Descrição','Crédito no app','Parcelas','Soma planilha','Diferença','Situação','Parcelas ligadas'],
+      M.rows.map(r=>[dBR(r.cr.date), r.cr.desc, nf2(r.cr.c/100), r.items.length, nf2(r.planC/100), nf2(r.d/100), (BON_ST[r.st]||{}).l, r.items.map(i=>i.hotel+' '+i.label+' '+nf2(i.c/100)).join(' + ')]));
+  });
+  const credClick = async e=>{
+    const pb = e.target.closest('button[data-bpcred]'); if(pb){ bonOpenPanel({credit:pb.dataset.bpcred}); return; }
+    const ul = e.target.closest('button[data-bunlink]');
+    if(ul){ BON.link[ul.dataset.bunlink] = 0; await save(); return; }
+    const ig = e.target.closest('button[data-appign]');
+    if(ig){ const id = +ig.dataset.appign; BON.appInc = BON.appInc.filter(x=>x!==id); if(!BON.appIgn.includes(id)) BON.appIgn.push(id); await save(); return; }
+    const ic = e.target.closest('button[data-appinc]');
+    if(ic){ const id = +ic.dataset.appinc; BON.appIgn = BON.appIgn.filter(x=>x!==id); if(!BON.appInc.includes(id)) BON.appInc.push(id); await save(); return; }
+    const ob = e.target.closest('button[data-bpitem]'); if(ob){ bonOpenPanel({item:ob.dataset.bpitem}); return; }
+    if(e.target.closest('.bon-detail')) return;
+    const row = e.target.closest('.rb-row[data-cropen]'); if(!row) return;
+    const k = 'c'+row.dataset.cropen; bonOpen.has(k) ? bonOpen.delete(k) : bonOpen.add(k); bonRenderCred();
+  };
+  $('bcBody').addEventListener('click', credClick);
+  $('bcOrphan').addEventListener('click', credClick);
+  // painel
+  $('bp_credit').addEventListener('change', e=>{
+    bonP.credit = e.target.value; bonP.sel = new Map(); document.getElementById('bpSugMsg').style.display = 'none';
+    const r = bonCache.M.rows.find(x=>String(x.cr.id)===bonP.credit); if(r) bonP.month = r.cr.month;
+    bonRenderPanel();
+  });
+  $('bp_month').addEventListener('change', e=>{ bonP.month = e.target.value; bonRenderPanel(); });
+  $('bp_amount').addEventListener('input', e=>{ bonP.amount = e.target.value; bpUpdateSum(); });
+  $('bp_filter').addEventListener('change', e=>{ bonP.filter = e.target.value; bonRenderPanelRows(); });
+  $('bp_upto').addEventListener('change', e=>{ bonP.upto = e.target.checked; bonRenderPanelRows(); });
+  let tmp; $('bp_search').addEventListener('input', e=>{ bonP.search = e.target.value; clearTimeout(tmp); tmp = setTimeout(bonRenderPanelRows, 150); });
+  $('bpSugBtn').addEventListener('click', bonPanelSuggest);
+  $('bpClearBtn').addEventListener('click', ()=>{ bonP.sel = new Map(); document.getElementById('bpSugMsg').style.display = 'none'; bonRenderPanelRows(); bpUpdateSum(); });
+  $('bpApplyBtn').addEventListener('click', bonPanelApply);
+  $('bpBody').addEventListener('change', e=>{
+    const t = e.target;
+    if(t.matches('input[data-bpk]')){ bpToggle(t.dataset.bpk, t.checked); bonRenderPanelRows(); bpUpdateSum(); }
+    else if(t.matches('input[data-bpall]')){
+      bonPanelVisible().filter(r=>r.c.id===t.dataset.bpall).forEach(r=>{ if(bonP.credit!=='manual' && r.crId===+bonP.credit) return; bpToggle(r.key, t.checked); });
+      bonRenderPanelRows(); bpUpdateSum();
+    } else if(t.matches('input[data-bpv]')){
+      const v = toC(parseFloat(t.value)||0); bonP.sel.set(t.dataset.bpv, v); bpUpdateSum();
+    }
+  });
 }
 
 /* ============ Conciliar reembolsos pelo relatório de despesas ============
