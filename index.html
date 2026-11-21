@@ -636,6 +636,9 @@ footer button{margin-left:6px;}
 .bp-box{padding:12px 14px;margin-bottom:12px;border:1px solid var(--border);border-radius:10px;background:var(--surface-2);}
 .bp-bar{position:sticky;bottom:0;display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-top:12px;padding:12px 16px;background:var(--surface-2);border:1px solid var(--gold);border-radius:10px;font-size:13px;z-index:4;}
 
+.bon-sheet input.sc.lk{border-bottom:2px solid var(--income);}
+.bon-sheet input.sc.nolk{border-bottom:2px solid var(--gold);color:var(--gold);}
+
 .rep-card{padding:10px 12px;margin-bottom:8px;border:1px solid var(--border);border-radius:10px;font-size:12.5px;line-height:1.6;background:var(--surface-2);}
 .rep-card.ok{border-left:3px solid var(--income);} .rep-card.warn{border-left:3px solid var(--gold);} .rep-card.bad{border-left:3px solid var(--expense);} .rep-card.off{opacity:0.6;}
 </style>
@@ -1127,7 +1130,7 @@ footer button{margin-left:6px;}
                 <tfoot id="bonPlanFoot"></tfoot>
               </table>
             </div>
-            <div class="import-hint" style="margin-top:10px;">Mesma disposição da planilha. Os campos de <b>mês</b> (mm/aaaa) e <b>valor</b> de Previsto, Pago, Adicional, o Ajuste e a Observação são editáveis direto na célula (Enter ou sair do campo salva). Devido, Pago, Saldo, Acumulado, Pendentes e Situação são calculados: Devido = soma dos previstos · Saldo = Devido − Pago + Ajuste · Acumulado = soma corrida do saldo na ordem da planilha. Mês previsto já passado e sem pagamento fica em <span style="color:var(--expense);">vermelho</span>. ✏️ edita o contrato (hotel, divisão, total, cálculo do previsto).</div>
+            <div class="import-hint" style="margin-top:10px;">Mesma disposição da planilha. Os campos de <b>mês</b> (mm/aaaa) e <b>valor</b> de Previsto, Pago, Adicional, o Ajuste e a Observação são editáveis direto na célula (Enter ou sair do campo salva). Devido, Pago, Saldo, Acumulado, Pendentes e Situação são calculados: Devido = soma dos previstos · Saldo = Devido − Pago + Ajuste · Acumulado = soma corrida do saldo na ordem da planilha. Sublinhado no mês pago: <span style="color:var(--income);">verde</span> = parcela vinculada a um crédito de bônus do app; <span style="color:var(--gold);">âmbar</span> = paga na planilha mas sem crédito vinculado (passe o mouse para ver o crédito). Mês previsto já passado e sem pagamento fica em <span style="color:var(--expense);">vermelho</span>. ✏️ edita o contrato (hotel, divisão, total, cálculo do previsto).</div>
           </div>
 
           <div id="bonCompactWrap" style="display:none;">
@@ -5624,6 +5627,14 @@ function bonPlanComputed(c, k, acum){
     acum: bcn(acum), st: bonBadge(k.st)
   };
 }
+// situação do vínculo de uma parcela paga com o crédito de bônus do app (para destacar na planilha)
+function bonLinkInfo(c, i){
+  const pd = c.paid && c.paid[i]; if(!pd || !pd.v) return {cls:'', title:'Mês em que a parcela foi paga (mm/aaaa)'};
+  const a = bonCache && bonCache.M && bonCache.M.asg.get(c.id+':'+i);
+  if(!a) return {cls:'nolk', title:'Paga na planilha, mas SEM crédito de bônus vinculado no app (aba "Conciliação com o salário")'};
+  const r = bonCache.M.rows.find(x=>x.cr.id===a.crId);
+  return {cls:'lk', title:'Vinculada ao crédito de '+dBR(r.cr.date)+' · '+fmtC(r.cr.c)+' ('+r.cr.desc+')'};
+}
 function bonPlanRow(r){
   const {c, k, idx, acum} = r, id = escH(c.id), z = bonPlanComputed(c, k, acum);
   const mi = (f, v, cls)=>`<input class="sc m ${cls||''}" data-cid="${id}" data-f="${f}" value="${bmShort(v)}" placeholder="mm/aaaa">`;
@@ -5632,7 +5643,7 @@ function bonPlanRow(r){
   const slot = (arr, key)=>[0,1,2].map(i=>{ const x = arr&&arr[i]; return x||null; });
   const pv = slot(c.prev), pd = slot(c.paid);
   const prev = [0,1,2].map(i=>`<td>${mi('p'+i+'m', pv[i]&&pv[i].m, k.slots[i].st==='vencida'?'late':'')}</td><td>${ni('p'+i+'v', pv[i]&&pv[i].v)}</td>`).join('');
-  const paid = [0,1,2].map(i=>`<td>${mi('d'+i+'m', pd[i]&&pd[i].m)}</td><td>${ni('d'+i+'v', pd[i]&&pd[i].v, k.slots[i].st==='paga'?'ok':'')}</td>`).join('');
+  const paid = [0,1,2].map(i=>{ const L = bonLinkInfo(c, i); return `<td title="${escH(L.title)}">${mi('d'+i+'m', pd[i]&&pd[i].m, L.cls)}</td><td>${ni('d'+i+'v', pd[i]&&pd[i].v, k.slots[i].st==='paga'?'ok':'')}</td>`; }).join('');
   const x = c.extra;
   return `<tr data-cid="${id}" class="${c.cancel?'cancel':''}">
     <td class="s0 ctr">${idx+1}</td>
@@ -5697,6 +5708,8 @@ function bonPlanUpdate(){   // atualiza só as células calculadas (e as cores) 
     for(let i=0;i<3;i++){
       tr.querySelector(`[data-f="p${i}m"]`).classList.toggle('late', r.k.slots[i].st==='vencida');
       tr.querySelector(`[data-f="d${i}v"]`).classList.toggle('ok', r.k.slots[i].st==='paga');
+      const L = bonLinkInfo(r.c, i), dm = tr.querySelector(`[data-f="d${i}m"]`);
+      dm.classList.toggle('lk', L.cls==='lk'); dm.classList.toggle('nolk', L.cls==='nolk'); dm.parentElement.title = L.title;
     }
   });
   document.getElementById('bonPlanFoot').innerHTML = bonPlanFoot(bonPlanIds);
@@ -6062,12 +6075,17 @@ function bonMatch(){
       if(pool.length && tot<=empty[0].c*1.15+BON_TOL_C) pool.forEach(it=>give(it, empty[0], 'mes'));
     }
   });
-  // mês próximo (±3), combinação exata de até 4 parcelas
-  live.filter(c=>!rows.get(c.id).items.length).sort((a,b)=>b.c-a.c).forEach(cr=>{
-    const pool = freeItems().filter(it=>Math.abs(bmDiff(it.month, cr.month))<=3 && it.c<=cr.c+BON_TOL_C)
-      .sort((a,b)=>Math.abs(bmDiff(a.month,cr.month))-Math.abs(bmDiff(b.month,cr.month))||b.c-a.c).slice(0,16);
-    const sub = bonSubset(pool, cr.c, 4);
-    if(sub && sub.d<=BON_TOL_C) sub.idx.forEach(i=>give(pool[i], cr, 'outro'));
+  // mês próximo: (1) créditos sem parcela ou (2) créditos que ainda ficaram acima da planilha. Procura entre as parcelas
+  // soltas uma combinação que feche a diferença: até 4 parcelas em ±3 meses; até 2 parcelas em ±24 meses (valor exato).
+  const rest = cr=>cr.c - rows.get(cr.id).items.reduce((q,i)=>q+i.c,0);
+  [[4,3],[2,24]].forEach(([maxK, win])=>{
+    live.map(c=>({c, r:rest(c)})).filter(x=>x.r>BON_TOL_C).sort((a,b)=>b.r-a.r).forEach(({c:cr})=>{
+      const need = rest(cr); if(need<=BON_TOL_C) return;
+      const pool = freeItems().filter(it=>Math.abs(bmDiff(it.month, cr.month))<=win && it.c<=need+BON_TOL_C)
+        .sort((a,b)=>Math.abs(bmDiff(a.month,cr.month))-Math.abs(bmDiff(b.month,cr.month))||b.c-a.c).slice(0,16);
+      const sub = bonSubset(pool, need, maxK);
+      if(sub && sub.d<=bonTolFor(sub.idx.length)) sub.idx.forEach(i=>give(pool[i], cr, 'outro'));
+    });
   });
   const list = [...rows.values()].map(r=>{
     r.planC = r.items.reduce((s,i)=>s+i.c, 0); r.d = r.cr.c - r.planC;
