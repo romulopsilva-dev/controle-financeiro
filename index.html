@@ -6060,19 +6060,20 @@ function bonMatch(){
   items.forEach(it=>{ const l = BON.link[it.key]; if(l && crById.has(l)) give(it, crById.get(l), 'manual'); });
   const byMonth = new Map();
   live.forEach(c=>{ if(!byMonth.has(c.month)) byMonth.set(c.month, []); byMonth.get(c.month).push(c); });
-  // mesmo mês
+  // mesmo mês (também completa créditos que já têm vínculo manual: usa só o que ainda falta do crédito)
+  const need0 = cr=>cr.c - rows.get(cr.id).items.reduce((q,i)=>q+i.c,0);
   byMonth.forEach((crs, m)=>{
     crs.slice().sort((a,b)=>b.c-a.c).forEach(cr=>{
-      if(rows.get(cr.id).items.length) return;
-      const pool = freeItems().filter(it=>it.month===m); if(!pool.length) return;
-      const sub = bonSubset(pool, cr.c);
+      const need = need0(cr); if(need<=BON_TOL_C) return;
+      const pool = freeItems().filter(it=>it.month===m && it.c<=need+BON_TOL_C); if(!pool.length) return;
+      const sub = bonSubset(pool, need);
       if(sub) sub.idx.forEach(i=>give(pool[i], cr, 'mes'));
     });
-    const empty = crs.filter(c=>!rows.get(c.id).items.length);
-    if(empty.length===1){
-      // único crédito do mês sem parcelas: liga o que sobrou do mês se for plausível (planilha não passa muito do crédito)
+    const open = crs.filter(c=>need0(c)>BON_TOL_C);
+    if(open.length===1){
+      // único crédito do mês ainda aberto: liga o que sobrou do mês se for plausível (planilha não passa muito do crédito)
       const pool = freeItems().filter(it=>it.month===m), tot = pool.reduce((q,i)=>q+i.c,0);
-      if(pool.length && tot<=empty[0].c*1.15+BON_TOL_C) pool.forEach(it=>give(it, empty[0], 'mes'));
+      if(pool.length && tot<=need0(open[0])*1.15+BON_TOL_C) pool.forEach(it=>give(it, open[0], 'mes'));
     }
   });
   // mês próximo: (1) créditos sem parcela ou (2) créditos que ainda ficaram acima da planilha. Procura entre as parcelas
@@ -6087,10 +6088,46 @@ function bonMatch(){
       if(sub && sub.d<=bonTolFor(sub.idx.length)) sub.idx.forEach(i=>give(pool[i], cr, 'outro'));
     });
   });
+  // grupo: vários créditos pendentes de meses vizinhos × várias parcelas soltas, quando o TOTAL fecha e só existe UMA
+  // combinação (ex.: dois créditos de nov/2018 = duas parcelas, com valores individuais trocados). Distribui por valor.
+  (function(){
+    const open = live.filter(c=>rest(c)>BON_TOL_C).sort((a,b)=>a.month.localeCompare(b.month));
+    for(let a=0;a<open.length;a++) for(let b=a+1;b<open.length;b++){
+      const A = open[a], B = open[b];
+      if(rest(A)<=BON_TOL_C || rest(B)<=BON_TOL_C || Math.abs(bmDiff(A.month,B.month))>2) continue;
+      const need = rest(A)+rest(B);
+      const pool = freeItems().filter(it=>Math.abs(bmDiff(it.month,A.month))<=3 && it.c<=need+BON_TOL_C).slice(0,14);
+      const n = pool.length; if(n<2) continue;
+      const hits = [];
+      for(let m=1;m<(1<<n) && hits.length<2;m++){
+        let sum=0, k=0; for(let i=0;i<n;i++) if(m>>i&1){ sum+=pool[i].c; k++; }
+        if(k>=2 && k<=6 && Math.abs(sum-need)<=BON_TOL_C) hits.push(m);
+      }
+      if(hits.length!==1) continue;
+      const sel = pool.filter((_,i)=>hits[0]>>i&1).sort((x,y)=>y.c-x.c);
+      const tgt = new Map([[A.id, rest(A)],[B.id, rest(B)]]);
+      sel.forEach(it=>{                       // cada parcela vai ao crédito com mais saldo restante
+        const cr = tgt.get(A.id)>=tgt.get(B.id) ? A : B;
+        tgt.set(cr.id, tgt.get(cr.id)-it.c); give(it, cr, 'grupo');
+      });
+    }
+  })();
+  // complemento: o crédito sem parcelas (B) completa um crédito vizinho cujas parcelas passam do valor (A):
+  // o bônus foi pago em dois créditos (ex.: 4º trim/24 = dez/24 + jan/25). Só quando a soma fecha.
+  const pairs = new Map();
+  live.forEach(B=>{
+    if(rows.get(B.id).items.length) return;
+    live.forEach(A=>{
+      if(A===B || pairs.has(A.id) || pairs.has(B.id) || Math.abs(bmDiff(A.month,B.month))>2) return;
+      const ia = rows.get(A.id).items, pa = ia.reduce((q,i)=>q+i.c,0);
+      if(ia.length && Math.abs(A.c + B.c - pa)<=bonTolFor(ia.length)){ pairs.set(A.id,B); pairs.set(B.id,A); }
+    });
+  });
   const list = [...rows.values()].map(r=>{
+    r.pair = pairs.get(r.cr.id) || null;
     r.planC = r.items.reduce((s,i)=>s+i.c, 0); r.d = r.cr.c - r.planC;
     const tol = bonTolFor(r.items.length);
-    r.st = r.cr.date>nowDay && !r.items.length ? 'aguard' : !r.items.length ? 'soapp' : Math.abs(r.d)<=tol ? 'conc' : 'dif';
+    r.st = r.pair ? 'conc' : r.cr.date>nowDay && !r.items.length ? 'aguard' : !r.items.length ? 'soapp' : Math.abs(r.d)<=tol ? 'conc' : 'dif';
     return r;
   }).sort((a,b)=>b.cr.date.localeCompare(a.cr.date) || b.cr.id-a.cr.id);
   const orphan = items.filter(it=>!asg.has(it.key)).sort((a,b)=>b.month.localeCompare(a.month));
@@ -6109,9 +6146,10 @@ function bonRenderCred(){
   const ign = bonF.cign ? M.ignored.filter(c=>bonF.cy==='all' || c.date.startsWith(bonF.cy)) : [];
   const orph = M.orphan.filter(i=>bonF.cy==='all' || i.month.startsWith(bonF.cy));
   document.getElementById('bcCount').textContent = `${rows.length} créditos · ${orph.length} parcelas pagas sem crédito`;
-  const kindTxt = {manual:'vínculo manual', mes:'mesmo mês', outro:'mês próximo'};
+  const kindTxt = {manual:'vínculo manual', mes:'mesmo mês', outro:'mês próximo', grupo:'grupo de créditos (total fecha)'};
   const det = r=>`<div class="bon-detail">
       ${r.items.length ? r.items.slice().sort((a,b)=>b.c-a.c).map(it=>`<div class="bon-it ${it.moved?'mv':''}"><span>${escH(it.hotel)} · ${escH(it.label)} <span class="rb-note">pago ${bmLbl(it.orig)}${it.moved?` (recebido em ${bmLbl(it.month)})`:''} · ${kindTxt[bonCache.M.asg.get(it.key).kind]}</span></span><b class="mono">${fmtC(it.c)}</b><span class="bon-ctl"><button class="btn-secondary mini" data-bunlink="${escH(it.key)}" title="Desfazer este vínculo">Desvincular</button></span></div>`).join('') : '<div class="rb-note">Nenhuma parcela da planilha ligada a este crédito. Use 🔗 para selecionar contratos e parcelas.</div>'}
+      ${r.pair?`<div class="rb-note" style="color:var(--income);">Pago em dois créditos: este + ${dBR(r.pair.date)} (${fmtC(r.pair.c)}); a soma fecha com as parcelas.</div>`:''}
       <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;"><button class="btn-secondary mini" data-bpcred="${r.cr.id}">🔗 Selecionar parcelas</button><button class="btn-secondary mini" data-appign="${r.cr.id}">Ignorar (não é bônus de contrato)</button></div>
     </div>`;
   const body = rows.map(r=>{
@@ -6226,41 +6264,44 @@ function bpToggle(key, on){
   const r = bpRowByKey(key); if(!r) return;
   if(on) bonP.sel.set(key, r.paid ? r.paidC : r.prevC); else bonP.sel.delete(key);
 }
-// sugestão: combinação de parcelas em aberto que soma o que falta do crédito (meet-in-the-middle)
+// sugestão: combinação de parcelas em aberto que soma o que falta do crédito. Tenta, em ordem, parcelas previstas
+// para o mês do crédito, para os 3 meses anteriores e só então uma janela ampla; só preenche se a combinação for ÚNICA.
 function bonPanelSuggest(){
   const cr = bonPanelCredit(); if(!cr || cr.manual){ showToast('Escolha um crédito do app.'); return; }
   const asg = cr.assigned.reduce((s,i)=>s+i.c,0), target = cr.c - asg;
-  if(target<=BON_TOL_C){ showToast('Este crédito já está fechado.'); return; }
-  const lo = bonAddMonths(cr.month, -9);
-  let pool = bonSlotRows().filter(r=>r.pend && r.prevC && r.prevC<=target+BON_TOL_C && (!r.prevM || (r.prevM<=cr.month && r.prevM>=lo)))
-    .sort((a,b)=>Math.abs(bmDiff(a.prevM||cr.month, cr.month))-Math.abs(bmDiff(b.prevM||cr.month, cr.month))).slice(0,36);
-  const n = pool.length, h = n>>1, A = pool.slice(0,h), B = pool.slice(h);
-  const sums = arr=>{ const N = 1<<arr.length, s = new Float64Array(N); for(let m=1;m<N;m++){ const i = 31-Math.clz32(m&-m); s[m] = s[m&(m-1)] + arr[i].prevC; } return s; };
-  const SA = sums(A), SB = sums(B), idxB = Uint32Array.from({length:SB.length}, (_,i)=>i).sort((x,y)=>SB[x]-SB[y]);
-  const tol = BON_TOL_C, sols = []; let total = 0;
-  for(let ma=0; ma<SA.length && total<2000; ma++){
-    const lowv = target-tol-SA[ma], hiv = target+tol-SA[ma];
-    let l = 0, r = idxB.length; while(l<r){ const m = (l+r)>>1; if(SB[idxB[m]]<lowv) l = m+1; else r = m; }
-    for(let q=l; q<idxB.length && SB[idxB[q]]<=hiv && total<2000; q++){
-      const mb = idxB[q]; total++;
-      const cnt = bonBits(ma)+bonBits(mb);
-      if(cnt===0) continue;
-      if(sols.length<400) sols.push({ma, mb, cnt, d:Math.abs(SA[ma]+SB[mb]-target)});
+  const msg = document.getElementById('bpSugMsg'); msg.style.display = 'block';
+  if(target<=BON_TOL_C){ msg.innerHTML = 'Este crédito já está fechado.'; return; }
+  const all = bonSlotRows().filter(r=>r.pend && r.prevC && r.prevC<=target+BON_TOL_C);
+  const tiers = [
+    ['previstas para o mês do crédito (' + bmLbl(cr.month) + ')', r=>r.prevM===cr.month],
+    ['previstas nos 3 meses até o crédito', r=>r.prevM && r.prevM<=cr.month && r.prevM>=bonAddMonths(cr.month,-3)],
+    ['previstas nos 9 meses até o crédito', r=>!r.prevM || (r.prevM<=cr.month && r.prevM>=bonAddMonths(cr.month,-9))]
+  ];
+  const find = pool=>{
+    const n = pool.length; if(n<1 || n>24) return n>24 ? {many:true} : {sols:[]};
+    const sols = [];
+    for(let m=1; m<(1<<n) && sols.length<30; m++){
+      let q = 0; for(let i=0;i<n;i++) if(m>>i&1) q += pool[i].prevC;
+      if(Math.abs(q-target)<=BON_TOL_C) sols.push({m, d:Math.abs(q-target)});
+    }
+    return {sols};
+  };
+  for(const [name, fn] of tiers){
+    const pool = all.filter(fn), R = find(pool);
+    if(R.many) continue;
+    if(R.sols.length===1){
+      const pick = pool.filter((_,i)=>R.sols[0].m>>i&1);
+      bonP.sel = new Map(pick.map(r=>[r.key, r.prevC]));
+      bonRenderPanelRows(); bpUpdateSum();
+      msg.innerHTML = `<b>Sugestão (única entre as parcelas ${name}):</b> ${pick.length} parcela(s) somando ${fmtC(pick.reduce((q,r)=>q+r.prevC,0))} para ${fmtC(target)}${R.sols[0].d?` (diferença ${fmtC(R.sols[0].d)})`:''}. Confira se os contratos fazem sentido antes de registrar.`;
+      return;
+    }
+    if(R.sols.length>1){
+      msg.innerHTML = `<b>Sem sugestão confiável:</b> há ${R.sols.length>=30?'30 ou mais':R.sols.length} combinações entre as parcelas ${name} que somam ${fmtC(target)} (±R$ 1,00). Marque manualmente os contratos (veja a descrição e a data do crédito); o rodapé mostra quanto falta.`;
+      return;
     }
   }
-  if(!sols.length){ const m0 = document.getElementById('bpSugMsg'); m0.style.display = 'block'; m0.innerHTML = `Nenhuma combinação de parcelas em aberto soma ${fmtC(target)} (±R$ 1,00): o crédito inclui valores que não estão na planilha (ex.: ajustes, parcelas de outros contratos ou meses fora da janela de 9 meses).`; return; }
-  sols.sort((x,y)=>x.d-y.d || x.cnt-y.cnt);
-  const msg = document.getElementById('bpSugMsg');
-  msg.style.display = 'block';
-  if(total>12){
-    msg.innerHTML = `<b>Sem sugestão confiável:</b> existem ${total>=2000?'mais de 2000':total} combinações de parcelas em aberto que somam ${fmtC(target)} (±R$ 1,00); só pelo valor não dá para saber quais contratos foram pagos. Marque manualmente os contratos (veja a descrição do crédito e a data); o app mostra quanto falta.`;
-    return;
-  }
-  const best = sols[0], pick = [];
-  A.forEach((r,i)=>{ if(best.ma>>i&1) pick.push(r); }); B.forEach((r,i)=>{ if(best.mb>>i&1) pick.push(r); });
-  bonP.sel = new Map(pick.map(r=>[r.key, r.prevC]));
-  bonRenderPanelRows(); bpUpdateSum();
-  msg.innerHTML = `<b>Sugestão:</b> ${pick.length} parcela(s) somando ${fmtC(pick.reduce((s,r)=>s+r.prevC,0))}. ${total>1?`Há ${total} combinações possíveis — <b>confira</b> se os contratos fazem sentido (o app escolheu a de menor diferença e menos parcelas).`:'É a única combinação encontrada.'}`;
+  msg.innerHTML = `Nenhuma combinação de parcelas em aberto soma ${fmtC(target)} (±R$ 1,00): o crédito inclui valores que não estão na planilha (ajustes, contratos ainda não lançados ou parcelas com valor diferente do previsto).`;
 }
 function bonBits(x){ let c = 0; while(x){ c += x&1; x >>>= 1; } return c; }
 async function bonPanelApply(){
